@@ -226,7 +226,8 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label class="block text-xs text-gray-500 mb-1">Nome Completo *</label>
-                        <input type="text" id="cli-nome" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 focus:ring-0 outline-none">
+                        <!-- Adicionado maxlength="60" -->
+                        <input type="text" id="cli-nome" maxlength="60" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 focus:ring-0 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Telefone *</label>
@@ -234,11 +235,13 @@
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">E-mail</label>
-                        <input type="email" id="cli-email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
+                        <!-- Adicionado maxlength="60" -->
+                        <input type="email" id="cli-email" maxlength="60" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div class="col-span-2">
                         <label class="block text-xs text-gray-500 mb-1">Endereço</label>
-                        <input type="text" id="cli-endereco" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
+                        <!-- Adicionado maxlength="60" -->
+                        <input type="text" id="cli-endereco" maxlength="60" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                 </div>
                 <div class="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
@@ -274,10 +277,17 @@
                         <label class="block text-xs text-gray-500 mb-1">Vencimento (1ª Parcela) *</label>
                         <input type="date" id="fin-vencimento" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
+                    
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Nº de Parcelas *</label>
-                        <input type="number" id="fin-parcelas" min="1" value="1" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none bg-gray-50">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs text-gray-500">Nº de Parcelas *</label>
+                            <label class="flex items-center gap-1 text-[10px] font-bold text-blue-600 cursor-pointer">
+                                <input type="checkbox" id="fin-tem-parcelas" onchange="toggleParcelas()" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Parcelado?
+                            </label>
+                        </div>
+                        <input type="number" id="fin-parcelas" min="1" value="1" disabled required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none bg-gray-100 text-gray-400">
                     </div>
+
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Valor Total (Soma de tudo) *</label>
                         <input type="text" id="fin-valor-total" required placeholder="R$ 0,00" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
@@ -344,6 +354,30 @@
         }
 
         // ==========================================
+        // LÓGICA DE PARCELAMENTO INTELIGENTE
+        // ==========================================
+        function toggleParcelas() {
+            const checkbox = document.getElementById('fin-tem-parcelas');
+            const inputParcelas = document.getElementById('fin-parcelas');
+            const selectFormaPagamento = document.getElementById('fin-forma-pagamento');
+
+            if (checkbox.checked) {
+                inputParcelas.disabled = false;
+                inputParcelas.classList.remove('bg-gray-100', 'text-gray-400');
+                inputParcelas.classList.add('bg-white');
+                inputParcelas.value = 2; // Mínimo de 2 parcelas ao ativar
+                inputParcelas.min = 2;
+                selectFormaPagamento.value = 'Cartão de Crédito'; // Seleciona Cartão de Crédito por padrão
+            } else {
+                inputParcelas.disabled = true;
+                inputParcelas.classList.add('bg-gray-100', 'text-gray-400');
+                inputParcelas.classList.remove('bg-white');
+                inputParcelas.value = 1;
+                inputParcelas.min = 1;
+            }
+        }
+
+        // ==========================================
         // NAVEGAÇÃO E UI
         // ==========================================
         function switchTab(viewId, title, elementoClicado = null) {
@@ -401,10 +435,19 @@
                     tituloModal.innerHTML = '<i class="ph ph-plus-circle text-2xl text-green-500"></i> Novo Recebimento';
                 }
 
+                // Reseta a lógica de parcelas para estado de NOVO Lançamento
                 if (!financeiroEmEdicaoId) {
-                    document.getElementById('fin-parcelas').disabled = false;
-                    document.getElementById('fin-parcelas').value = 1;
-                    document.getElementById('fin-parcelas').classList.remove('bg-gray-100', 'text-gray-400');
+                    const chkParcelas = document.getElementById('fin-tem-parcelas');
+                    const inputParcelas = document.getElementById('fin-parcelas');
+                    
+                    chkParcelas.checked = false;
+                    chkParcelas.disabled = false;
+                    
+                    inputParcelas.disabled = true;
+                    inputParcelas.value = 1;
+                    inputParcelas.classList.add('bg-gray-100', 'text-gray-400');
+                    inputParcelas.classList.remove('bg-white');
+                    
                     document.getElementById('fin-status').value = 'Pendente';
                 }
             }
@@ -570,7 +613,6 @@
                         badgeMaster = 'bg-green-100 text-green-700';
                     }
 
-                    // A regex permanece aqui caso você tenha registros antigos que ainda possuam "(Parc. x/x)" no banco
                     const descMaster = baseItem.descricao.replace(/ \(Parc\. \d+\/\d+\)$/, '');
                     let proxVenc = itens.find(i => i.status !== 'Pago') || itens[itens.length - 1];
 
@@ -693,7 +735,7 @@
 
                     registros.push({
                         tipo: tipo,
-                        descricao: descricao, // Mantém a descrição idêntica sem acrescentar "(Parc. X/Y)"
+                        descricao: descricao, 
                         cliente: cliente,
                         vencimento: vencFormatado,
                         valor_total: valorAtual,
@@ -724,6 +766,10 @@
                 
                 document.getElementById('fin-status').value = data.status;
                 document.getElementById('fin-forma-pagamento').value = data.forma_pagamento;
+                
+                // Bloqueia a checkbox e o input de edição para segurança dos dados
+                document.getElementById('fin-tem-parcelas').checked = false;
+                document.getElementById('fin-tem-parcelas').disabled = true;
                 
                 document.getElementById('fin-parcelas').disabled = true;
                 document.getElementById('fin-parcelas').value = 1;
