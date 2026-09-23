@@ -89,12 +89,9 @@
                     </button>
                 </div>
                 <div class="flex-1 flex items-center bg-gray-800 rounded-lg px-4 py-2">
-                    <input type="text" placeholder="Pesquisar cliente por nome, telefone..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500">
+                    <input type="text" id="search-clientes" oninput="filterTableClientes(event)" placeholder="Pesquisar cliente por nome, telefone, email, endereço..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500">
                     <i class="ph ph-magnifying-glass text-gray-400"></i>
                 </div>
-                <button class="bg-gray-800 text-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-700 transition-colors text-sm">
-                    <i class="ph ph-calendar-blank"></i> HOJE
-                </button>
             </div>
 
             <!-- Tabela Clientes -->
@@ -117,7 +114,7 @@
                     </table>
                 </div>
                 <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-xs text-gray-500 shrink-0">
-                    <p>Mostrando <span id="contador-clientes" class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded">0</span> clientes cadastrados</p>
+                    <p>Mostrando <span id="contador-clientes" class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded">0</span> clientes listados</p>
                 </div>
             </div>
         </div>
@@ -185,7 +182,7 @@
                     </button>
                 </div>
                 <div class="flex-1 flex items-center bg-gray-800 rounded-lg px-4 py-2">
-                    <input type="text" placeholder="Pesquisar lançamento..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500">
+                    <input type="text" id="search-financeiro" oninput="filterTableFinanceiro(event)" placeholder="Pesquisar lançamento..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500">
                     <i class="ph ph-magnifying-glass text-gray-400"></i>
                 </div>
             </div>
@@ -277,12 +274,10 @@
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Valor Total *</label>
-                        <!-- Tipo alterado para "text" para suportar a máscara -->
                         <input type="text" id="fin-valor-total" required placeholder="R$ 0,00" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Valor Pago/Recebido</label>
-                        <!-- Tipo alterado para "text" para suportar a máscara -->
                         <input type="text" id="fin-valor-pago" placeholder="R$ 0,00" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div>
@@ -354,10 +349,16 @@
             if(viewId === 'clientes') {
                 document.getElementById('view-clientes').classList.remove('hidden');
                 document.getElementById('nav-clientes').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
+                
+                // Limpa o input de pesquisa e recarrega os dados originais
+                document.getElementById('search-clientes').value = '';
                 if (supabaseClient) loadClientes();
             } else if (viewId === 'financeiro') {
                 document.getElementById('view-financeiro').classList.remove('hidden');
                 document.getElementById('nav-financeiro').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
+                
+                // Limpa o input de pesquisa e recarrega os dados originais
+                document.getElementById('search-financeiro').value = '';
                 if (supabaseClient) loadFinanceiro();
             } else {
                 document.getElementById('view-construcao').classList.remove('hidden');
@@ -379,6 +380,8 @@
             badge.className = `text-white text-[10px] px-2 py-1 rounded ${tipo === 'receber' ? 'bg-green-500' : 'bg-red-500'}`;
             badge.innerText = tipo === 'receber' ? 'CONTAS A RECEBER' : 'CONTAS A PAGAR';
 
+            // Limpa o campo de pesquisa ao alternar abas
+            document.getElementById('search-financeiro').value = '';
             if (supabaseClient) loadFinanceiro(); 
         }
 
@@ -403,6 +406,43 @@
             if (modalId === 'modal-financeiro') {
                 document.getElementById('form-financeiro').reset();
                 financeiroEmEdicaoId = null;
+            }
+        }
+
+        // ==========================================
+        // MÓDULO DE PESQUISA GLOBAL NAS TABELAS
+        // ==========================================
+        function filterTableClientes(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            const rows = document.getElementById('tabela-clientes-body').getElementsByTagName('tr');
+            let count = 0;
+            
+            for (let row of rows) {
+                // Pega todo o texto da linha (incluindo todas as colunas)
+                const rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchTerm)) {
+                    row.style.display = '';
+                    count++;
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+            // Atualiza o contador de clientes listados baseado no filtro
+            document.getElementById('contador-clientes').innerText = count;
+        }
+
+        function filterTableFinanceiro(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            const rows = document.getElementById('tabela-financeiro-body').getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                // Pega todo o texto da linha (incluindo todas as colunas)
+                const rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
             }
         }
 
@@ -453,12 +493,16 @@
             }
 
             closeModal('modal-cliente');
+            
+            // Limpa a barra de pesquisa para recarregar todos os clientes atualizados
+            document.getElementById('search-clientes').value = '';
             loadClientes();
         }
 
         async function deletarCliente(id) {
             if(confirm('Tem certeza que deseja excluir este cliente?')) {
                 await supabaseClient.from('clientes').delete().eq('id', id);
+                document.getElementById('search-clientes').value = '';
                 loadClientes();
             }
         }
@@ -544,7 +588,6 @@
                 descricao: document.getElementById('fin-descricao').value,
                 cliente: document.getElementById('fin-cliente').value,
                 vencimento: document.getElementById('fin-vencimento').value,
-                // O banco precisa receber em formato Decimal puro, então usamos a função de desformatar
                 valor_total: desformatarMoeda(document.getElementById('fin-valor-total').value),
                 valor_pago: desformatarMoeda(document.getElementById('fin-valor-pago').value),
                 status: document.getElementById('fin-status').value,
@@ -558,6 +601,9 @@
             }
 
             closeModal('modal-financeiro');
+            
+            // Limpa o campo de pesquisa para recarregar sem filtros
+            document.getElementById('search-financeiro').value = '';
             loadFinanceiro();
         }
 
@@ -568,7 +614,6 @@
                 document.getElementById('fin-cliente').value = data.cliente || '';
                 document.getElementById('fin-vencimento').value = data.vencimento;
                 
-                // Formata o valor salvo no banco de volta para a máscara visual de Reais (R$)
                 document.getElementById('fin-valor-total').value = formatarNumeroParaMoeda(data.valor_total);
                 document.getElementById('fin-valor-pago').value = formatarNumeroParaMoeda(data.valor_pago || 0);
                 
@@ -583,6 +628,7 @@
         async function deletarFinanceiro(id) {
             if(confirm('Tem certeza que deseja excluir este lançamento?')) {
                 await supabaseClient.from('financeiro').delete().eq('id', id);
+                document.getElementById('search-financeiro').value = '';
                 loadFinanceiro();
             }
         }
@@ -591,7 +637,6 @@
         // MÁSCARAS DE ENTRADA (Telefone e Moeda)
         // ==========================================
         
-        // Máscara de Telefone
         document.getElementById('cli-telefone').addEventListener('input', function (e) {
             let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
             e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
@@ -603,7 +648,6 @@
             }
         });
 
-        // Funções para manipulação de Moeda (Dinheiro)
         function aplicarMascaraMoeda(e) {
             let value = e.target.value.replace(/\D/g, "");
             if (value === "") {
@@ -629,7 +673,6 @@
             return "R$ " + valorF;
         }
 
-        // Aplicando a máscara de dinheiro nos inputs de valores do modal financeiro
         document.getElementById('fin-valor-total').addEventListener('input', aplicarMascaraMoeda);
         document.getElementById('fin-valor-pago').addEventListener('input', aplicarMascaraMoeda);
 
