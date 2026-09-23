@@ -89,7 +89,7 @@
                     </button>
                 </div>
                 <div class="flex-1 flex items-center bg-gray-800 rounded-lg px-4 py-2">
-                    <input type="text" id="search-clientes" oninput="filterTableClientes(event)" placeholder="Pesquisar cliente por nome, telefone, email, endereço..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500">
+                    <input type="text" id="pesquisa-clientes" placeholder="Pesquisar cliente por nome, telefone..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500" oninput="pesquisarClientes()">
                     <i class="ph ph-magnifying-glass text-gray-400"></i>
                 </div>
             </div>
@@ -97,7 +97,7 @@
             <!-- Tabela Clientes -->
             <div class="bg-white rounded-xl flex-1 flex flex-col shadow-sm border border-gray-100 overflow-hidden">
                 <div class="overflow-y-auto flex-1">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse" id="tabela-clientes">
                         <thead class="sticky top-0 bg-gray-50 border-b border-gray-100 z-10 text-gray-600 text-xs">
                             <tr>
                                 <th class="py-4 px-6">NOME</th>
@@ -114,7 +114,7 @@
                     </table>
                 </div>
                 <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-xs text-gray-500 shrink-0">
-                    <p>Mostrando <span id="contador-clientes" class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded">0</span> clientes listados</p>
+                    <p>Mostrando <span id="contador-clientes" class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded">0</span> clientes cadastrados</p>
                 </div>
             </div>
         </div>
@@ -182,7 +182,7 @@
                     </button>
                 </div>
                 <div class="flex-1 flex items-center bg-gray-800 rounded-lg px-4 py-2">
-                    <input type="text" id="search-financeiro" oninput="filterTableFinanceiro(event)" placeholder="Pesquisar lançamento..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500">
+                    <input type="text" id="pesquisa-financeiro" placeholder="Pesquisar lançamento..." class="bg-transparent border-none outline-none text-gray-300 w-full text-sm placeholder-gray-500" oninput="pesquisarFinanceiro()">
                     <i class="ph ph-magnifying-glass text-gray-400"></i>
                 </div>
             </div>
@@ -190,7 +190,7 @@
             <!-- Tabela Financeiro -->
             <div class="bg-white rounded-xl flex-1 flex flex-col shadow-sm border border-gray-100 overflow-hidden">
                 <div class="overflow-y-auto flex-1">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse" id="tabela-financeiro">
                         <thead class="sticky top-0 bg-gray-50 border-b border-gray-100 z-10 text-gray-600 text-xs">
                             <tr>
                                 <th class="py-4 px-6">VENCIMENTO</th>
@@ -211,6 +211,7 @@
         </div>
     </main>
 
+    <!-- Modais omitidos no HTML por clareza (O restante permanece idêntico) -->
     <!-- Modal Cliente -->
     <div id="modal-cliente" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[100] flex items-center justify-center">
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden relative">
@@ -325,7 +326,6 @@
             console.warn("Aviso: Falha ao iniciar o Supabase.", error);
         }
 
-        // Variáveis de Estado
         let clienteEmEdicaoId = null;
         let financeiroEmEdicaoId = null;
         let tipoFinanceiroAtual = 'receber'; 
@@ -349,16 +349,10 @@
             if(viewId === 'clientes') {
                 document.getElementById('view-clientes').classList.remove('hidden');
                 document.getElementById('nav-clientes').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
-                
-                // Limpa o input de pesquisa e recarrega os dados originais
-                document.getElementById('search-clientes').value = '';
                 if (supabaseClient) loadClientes();
             } else if (viewId === 'financeiro') {
                 document.getElementById('view-financeiro').classList.remove('hidden');
                 document.getElementById('nav-financeiro').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
-                
-                // Limpa o input de pesquisa e recarrega os dados originais
-                document.getElementById('search-financeiro').value = '';
                 if (supabaseClient) loadFinanceiro();
             } else {
                 document.getElementById('view-construcao').classList.remove('hidden');
@@ -380,8 +374,6 @@
             badge.className = `text-white text-[10px] px-2 py-1 rounded ${tipo === 'receber' ? 'bg-green-500' : 'bg-red-500'}`;
             badge.innerText = tipo === 'receber' ? 'CONTAS A RECEBER' : 'CONTAS A PAGAR';
 
-            // Limpa o campo de pesquisa ao alternar abas
-            document.getElementById('search-financeiro').value = '';
             if (supabaseClient) loadFinanceiro(); 
         }
 
@@ -410,53 +402,18 @@
         }
 
         // ==========================================
-        // MÓDULO DE PESQUISA GLOBAL NAS TABELAS
-        // ==========================================
-        function filterTableClientes(event) {
-            const searchTerm = event.target.value.toLowerCase();
-            const rows = document.getElementById('tabela-clientes-body').getElementsByTagName('tr');
-            let count = 0;
-            
-            for (let row of rows) {
-                // Pega todo o texto da linha (incluindo todas as colunas)
-                const rowText = row.textContent.toLowerCase();
-                if (rowText.includes(searchTerm)) {
-                    row.style.display = '';
-                    count++;
-                } else {
-                    row.style.display = 'none';
-                }
-            }
-            // Atualiza o contador de clientes listados baseado no filtro
-            document.getElementById('contador-clientes').innerText = count;
-        }
-
-        function filterTableFinanceiro(event) {
-            const searchTerm = event.target.value.toLowerCase();
-            const rows = document.getElementById('tabela-financeiro-body').getElementsByTagName('tr');
-            
-            for (let row of rows) {
-                // Pega todo o texto da linha (incluindo todas as colunas)
-                const rowText = row.textContent.toLowerCase();
-                if (rowText.includes(searchTerm)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            }
-        }
-
-        // ==========================================
-        // MÓDULO CLIENTES
+        // MÓDULO CLIENTES (SUPABASE)
         // ==========================================
         async function loadClientes() {
             if (!supabaseClient) return;
-            const { data, error } = await supabaseClient.from('clientes').select('*').order('created_at', { ascending: false });
+            // Busca apenas os não apagados
+            const { data, error } = await supabaseClient.from('clientes').select('*').eq('apagado', 'N').order('created_at', { ascending: false });
             if (error) return console.error('Erro ao carregar clientes', error);
 
             const tbody = document.getElementById('tabela-clientes-body');
             tbody.innerHTML = '';
             document.getElementById('contador-clientes').innerText = data.length;
+            document.getElementById('pesquisa-clientes').value = ''; 
 
             data.forEach(cliente => {
                 tbody.innerHTML += `
@@ -483,7 +440,8 @@
                 nome: document.getElementById('cli-nome').value,
                 telefone: document.getElementById('cli-telefone').value,
                 email: document.getElementById('cli-email').value,
-                endereco: document.getElementById('cli-endereco').value
+                endereco: document.getElementById('cli-endereco').value,
+                apagado: 'N'
             };
 
             if (clienteEmEdicaoId) {
@@ -493,16 +451,13 @@
             }
 
             closeModal('modal-cliente');
-            
-            // Limpa a barra de pesquisa para recarregar todos os clientes atualizados
-            document.getElementById('search-clientes').value = '';
             loadClientes();
         }
 
         async function deletarCliente(id) {
-            if(confirm('Tem certeza que deseja excluir este cliente?')) {
-                await supabaseClient.from('clientes').delete().eq('id', id);
-                document.getElementById('search-clientes').value = '';
+            if(confirm('Tem certeza que deseja apagar este cliente?')) {
+                // Ao invés de deletar, atualiza a coluna apagado
+                await supabaseClient.from('clientes').update({ apagado: 'S' }).eq('id', id);
                 loadClientes();
             }
         }
@@ -520,18 +475,21 @@
         }
 
         // ==========================================
-        // MÓDULO FINANCEIRO
+        // MÓDULO FINANCEIRO (SUPABASE)
         // ==========================================
         async function loadFinanceiro() {
             if (!supabaseClient) return;
-            const { data: todos, error: errAll } = await supabaseClient.from('financeiro').select('*');
+            // Busca todos que não estão apagados para compor o resumo
+            const { data: todos, error: errAll } = await supabaseClient.from('financeiro').select('*').eq('apagado', 'N');
             if (!errAll && todos) atualizarResumos(todos);
 
-            const { data, error } = await supabaseClient.from('financeiro').select('*').eq('tipo', tipoFinanceiroAtual).order('vencimento', { ascending: true });
+            // Busca os dados apenas não apagados da aba específica
+            const { data, error } = await supabaseClient.from('financeiro').select('*').eq('tipo', tipoFinanceiroAtual).eq('apagado', 'N').order('vencimento', { ascending: true });
             if (error) return console.error('Erro ao carregar financeiro', error);
 
             const tbody = document.getElementById('tabela-financeiro-body');
             tbody.innerHTML = '';
+            document.getElementById('pesquisa-financeiro').value = '';
 
             data.forEach(item => {
                 const badgeCor = item.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
@@ -591,7 +549,8 @@
                 valor_total: desformatarMoeda(document.getElementById('fin-valor-total').value),
                 valor_pago: desformatarMoeda(document.getElementById('fin-valor-pago').value),
                 status: document.getElementById('fin-status').value,
-                forma_pagamento: document.getElementById('fin-forma-pagamento').value
+                forma_pagamento: document.getElementById('fin-forma-pagamento').value,
+                apagado: 'N'
             };
 
             if (financeiroEmEdicaoId) {
@@ -601,9 +560,6 @@
             }
 
             closeModal('modal-financeiro');
-            
-            // Limpa o campo de pesquisa para recarregar sem filtros
-            document.getElementById('search-financeiro').value = '';
             loadFinanceiro();
         }
 
@@ -626,17 +582,52 @@
         }
 
         async function deletarFinanceiro(id) {
-            if(confirm('Tem certeza que deseja excluir este lançamento?')) {
-                await supabaseClient.from('financeiro').delete().eq('id', id);
-                document.getElementById('search-financeiro').value = '';
+            if(confirm('Tem certeza que deseja apagar este lançamento?')) {
+                // Ao invés de deletar, atualiza a coluna apagado
+                await supabaseClient.from('financeiro').update({ apagado: 'S' }).eq('id', id);
                 loadFinanceiro();
             }
         }
 
         // ==========================================
-        // MÁSCARAS DE ENTRADA (Telefone e Moeda)
+        // PESQUISA GLOBAL
         // ==========================================
-        
+        function pesquisarClientes() {
+            let input = document.getElementById("pesquisa-clientes").value.toLowerCase();
+            let table = document.getElementById("tabela-clientes");
+            let tr = table.getElementsByTagName("tr");
+            let countVisiveis = 0;
+
+            for (let i = 1; i < tr.length; i++) {
+                let textContent = tr[i].textContent || tr[i].innerText;
+                if (textContent.toLowerCase().indexOf(input) > -1) {
+                    tr[i].style.display = "";
+                    countVisiveis++;
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+            document.getElementById('contador-clientes').innerText = countVisiveis;
+        }
+
+        function pesquisarFinanceiro() {
+            let input = document.getElementById("pesquisa-financeiro").value.toLowerCase();
+            let table = document.getElementById("tabela-financeiro");
+            let tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) {
+                let textContent = tr[i].textContent || tr[i].innerText;
+                if (textContent.toLowerCase().indexOf(input) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+
+        // ==========================================
+        // MÁSCARAS DE ENTRADA
+        // ==========================================
         document.getElementById('cli-telefone').addEventListener('input', function (e) {
             let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
             e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
