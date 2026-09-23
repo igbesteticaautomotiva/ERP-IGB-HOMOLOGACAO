@@ -28,7 +28,7 @@
             </div>
             <nav class="flex-1 overflow-y-auto py-4 space-y-1 text-sm px-4">
                 <a href="#" onclick="switchTab('construcao', 'INÍCIO')" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-xs">
-                    <i class="ph ph-house text-lg"></i> INÍCI
+                    <i class="ph ph-house text-lg"></i> INÍCIO
                 </a>
                 <a href="#" onclick="switchTab('clientes', 'CLIENTES')" class="flex items-center gap-3 px-4 py-3 bg-gray-800 text-white border-l-4 border-white rounded-r-lg text-xs" id="nav-clientes">
                     <i class="ph ph-user text-lg"></i> CLIENTES
@@ -276,12 +276,14 @@
                         <input type="date" id="fin-vencimento" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Valor Total (R$) *</label>
-                        <input type="number" step="0.01" id="fin-valor-total" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
+                        <label class="block text-xs text-gray-500 mb-1">Valor Total *</label>
+                        <!-- Tipo alterado para "text" para suportar a máscara -->
+                        <input type="text" id="fin-valor-total" required placeholder="R$ 0,00" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Valor Pago/Recebido (R$)</label>
-                        <input type="number" step="0.01" id="fin-valor-pago" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
+                        <label class="block text-xs text-gray-500 mb-1">Valor Pago/Recebido</label>
+                        <!-- Tipo alterado para "text" para suportar a máscara -->
+                        <input type="text" id="fin-valor-pago" placeholder="R$ 0,00" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">Status</label>
@@ -310,9 +312,8 @@
     </div>
 
     <script>
-
         // ==========================================
-        // 1. CONFIGURAÇÃO SUPABASE
+        // 1. CONFIGURAÇÃO SUPABASE (HOMOLOGAÇÃO)
         // ==========================================
         const supabaseUrl = 'https://dxdfailixqzzclqxghos.supabase.co'; 
         const supabaseKey = 'sb_publishable_e_2vixLIkQYhrHaCprGXVg_S5IUrsah'; 
@@ -343,13 +344,11 @@
             document.getElementById('view-construcao').classList.add('hidden');
             document.getElementById('page-title').innerText = title;
 
-            // Remove destaques do menu
             document.querySelectorAll('nav a').forEach(a => {
                 a.classList.remove('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
                 a.classList.add('text-gray-400');
             });
 
-            // Se a chamada veio de um clique no menu, destaca ele
             let navItem = elementoClicado || window.event?.currentTarget;
 
             if(viewId === 'clientes') {
@@ -408,7 +407,7 @@
         }
 
         // ==========================================
-        // MÓDULO CLIENTES (SUPABASE)
+        // MÓDULO CLIENTES
         // ==========================================
         async function loadClientes() {
             if (!supabaseClient) return;
@@ -477,15 +476,13 @@
         }
 
         // ==========================================
-        // MÓDULO FINANCEIRO (SUPABASE)
+        // MÓDULO FINANCEIRO
         // ==========================================
         async function loadFinanceiro() {
             if (!supabaseClient) return;
-            // Carrega TUDO para calcular os resumos no cabeçalho
             const { data: todos, error: errAll } = await supabaseClient.from('financeiro').select('*');
             if (!errAll && todos) atualizarResumos(todos);
 
-            // Filtra pela aba atual (receber ou pagar)
             const { data, error } = await supabaseClient.from('financeiro').select('*').eq('tipo', tipoFinanceiroAtual).order('vencimento', { ascending: true });
             if (error) return console.error('Erro ao carregar financeiro', error);
 
@@ -499,8 +496,8 @@
                         <td class="py-3 px-6 text-gray-900">${item.vencimento.split('-').reverse().join('/')}</td>
                         <td class="py-3 px-6 font-medium text-gray-900">${item.descricao}</td>
                         <td class="py-3 px-6 text-gray-500">${item.cliente || '-'}</td>
-                        <td class="py-3 px-6 font-medium">R$ ${parseFloat(item.valor_total).toFixed(2)}</td>
-                        <td class="py-3 px-6 text-gray-500">R$ ${parseFloat(item.valor_pago || 0).toFixed(2)}</td>
+                        <td class="py-3 px-6 font-medium">R$ ${parseFloat(item.valor_total).toFixed(2).replace('.', ',')}</td>
+                        <td class="py-3 px-6 text-gray-500">R$ ${parseFloat(item.valor_pago || 0).toFixed(2).replace('.', ',')}</td>
                         <td class="py-3 px-6"><span class="px-2 py-1 rounded text-[10px] ${badgeCor}">${item.status}</span></td>
                         <td class="py-3 px-6 text-center">
                             <button onclick="editarFinanceiro('${item.id}')" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
@@ -527,13 +524,15 @@
                 }
             });
 
-            document.getElementById('resumo-rec-total').innerText = `R$ ${recTotal.toFixed(2)}`;
-            document.getElementById('resumo-rec-aberto').innerText = `R$ ${recAberto.toFixed(2)}`;
-            document.getElementById('resumo-rec-pago').innerText = `R$ ${recPago.toFixed(2)}`;
+            const formatarMoedaResumo = (valor) => 'R$ ' + valor.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
 
-            document.getElementById('resumo-pag-total').innerText = `R$ ${pagTotal.toFixed(2)}`;
-            document.getElementById('resumo-pag-aberto').innerText = `R$ ${pagAberto.toFixed(2)}`;
-            document.getElementById('resumo-pag-pago').innerText = `R$ ${pagPago.toFixed(2)}`;
+            document.getElementById('resumo-rec-total').innerText = formatarMoedaResumo(recTotal);
+            document.getElementById('resumo-rec-aberto').innerText = formatarMoedaResumo(recAberto);
+            document.getElementById('resumo-rec-pago').innerText = formatarMoedaResumo(recPago);
+
+            document.getElementById('resumo-pag-total').innerText = formatarMoedaResumo(pagTotal);
+            document.getElementById('resumo-pag-aberto').innerText = formatarMoedaResumo(pagAberto);
+            document.getElementById('resumo-pag-pago').innerText = formatarMoedaResumo(pagPago);
         }
 
         async function salvarFinanceiro(event) {
@@ -545,8 +544,9 @@
                 descricao: document.getElementById('fin-descricao').value,
                 cliente: document.getElementById('fin-cliente').value,
                 vencimento: document.getElementById('fin-vencimento').value,
-                valor_total: parseFloat(document.getElementById('fin-valor-total').value),
-                valor_pago: parseFloat(document.getElementById('fin-valor-pago').value || 0),
+                // O banco precisa receber em formato Decimal puro, então usamos a função de desformatar
+                valor_total: desformatarMoeda(document.getElementById('fin-valor-total').value),
+                valor_pago: desformatarMoeda(document.getElementById('fin-valor-pago').value),
                 status: document.getElementById('fin-status').value,
                 forma_pagamento: document.getElementById('fin-forma-pagamento').value
             };
@@ -567,8 +567,11 @@
                 document.getElementById('fin-descricao').value = data.descricao;
                 document.getElementById('fin-cliente').value = data.cliente || '';
                 document.getElementById('fin-vencimento').value = data.vencimento;
-                document.getElementById('fin-valor-total').value = data.valor_total;
-                document.getElementById('fin-valor-pago').value = data.valor_pago || 0;
+                
+                // Formata o valor salvo no banco de volta para a máscara visual de Reais (R$)
+                document.getElementById('fin-valor-total').value = formatarNumeroParaMoeda(data.valor_total);
+                document.getElementById('fin-valor-pago').value = formatarNumeroParaMoeda(data.valor_pago || 0);
+                
                 document.getElementById('fin-status').value = data.status;
                 document.getElementById('fin-forma-pagamento').value = data.forma_pagamento;
                 
@@ -585,8 +588,10 @@
         }
 
         // ==========================================
-        // MÁSCARA DE TELEFONE
+        // MÁSCARAS DE ENTRADA (Telefone e Moeda)
         // ==========================================
+        
+        // Máscara de Telefone
         document.getElementById('cli-telefone').addEventListener('input', function (e) {
             let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
             e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
@@ -597,6 +602,36 @@
                 e.target.setCustomValidity("");
             }
         });
+
+        // Funções para manipulação de Moeda (Dinheiro)
+        function aplicarMascaraMoeda(e) {
+            let value = e.target.value.replace(/\D/g, "");
+            if (value === "") {
+                e.target.value = "";
+                return;
+            }
+            value = (value / 100).toFixed(2) + "";
+            value = value.replace(".", ",");
+            value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            e.target.value = "R$ " + value;
+        }
+
+        function desformatarMoeda(valorFormatado) {
+            if (!valorFormatado) return 0;
+            return parseFloat(valorFormatado.replace(/\D/g, "")) / 100;
+        }
+
+        function formatarNumeroParaMoeda(numeroDecimal) {
+            if (numeroDecimal == null || isNaN(numeroDecimal)) return "";
+            let valorF = parseFloat(numeroDecimal).toFixed(2);
+            valorF = valorF.replace(".", ",");
+            valorF = valorF.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+            return "R$ " + valorF;
+        }
+
+        // Aplicando a máscara de dinheiro nos inputs de valores do modal financeiro
+        document.getElementById('fin-valor-total').addEventListener('input', aplicarMascaraMoeda);
+        document.getElementById('fin-valor-pago').addEventListener('input', aplicarMascaraMoeda);
 
         // Iniciar tela
         switchTab('clientes', 'CLIENTES');
