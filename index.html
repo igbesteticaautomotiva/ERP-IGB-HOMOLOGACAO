@@ -10,6 +10,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+        html {
+            font-size: 14px;
+        }
         * {
             font-family: 'Poppins', sans-serif !important;
             font-weight: 700 !important;
@@ -30,7 +33,7 @@
                 <a href="#" onclick="switchTab('construcao', 'INÍCIO')" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-xs">
                     <i class="ph ph-house text-lg"></i> INÍCIO
                 </a>
-                <a href="#" onclick="switchTab('clientes', 'CLIENTES')" class="flex items-center gap-3 px-4 py-3 bg-gray-800 text-white border-l-4 border-white rounded-r-lg text-xs" id="nav-clientes">
+                <a href="#" onclick="switchTab('clientes', 'CLIENTES')" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-xs" id="nav-clientes">
                     <i class="ph ph-user text-lg"></i> CLIENTES
                 </a>
                 <a href="#" onclick="switchTab('construcao', 'VEÍCULOS')" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-xs">
@@ -226,7 +229,6 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label class="block text-xs text-gray-500 mb-1">Nome Completo *</label>
-                        <!-- Adicionado maxlength="60" -->
                         <input type="text" id="cli-nome" maxlength="60" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 focus:ring-0 outline-none">
                     </div>
                     <div>
@@ -235,12 +237,10 @@
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 mb-1">E-mail</label>
-                        <!-- Adicionado maxlength="60" -->
                         <input type="email" id="cli-email" maxlength="60" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     <div class="col-span-2">
                         <label class="block text-xs text-gray-500 mb-1">Endereço</label>
-                        <!-- Adicionado maxlength="60" -->
                         <input type="text" id="cli-endereco" maxlength="60" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                 </div>
@@ -365,9 +365,9 @@
                 inputParcelas.disabled = false;
                 inputParcelas.classList.remove('bg-gray-100', 'text-gray-400');
                 inputParcelas.classList.add('bg-white');
-                inputParcelas.value = 2; // Mínimo de 2 parcelas ao ativar
+                inputParcelas.value = 2; 
                 inputParcelas.min = 2;
-                selectFormaPagamento.value = 'Cartão de Crédito'; // Seleciona Cartão de Crédito por padrão
+                selectFormaPagamento.value = 'Cartão de Crédito'; 
             } else {
                 inputParcelas.disabled = true;
                 inputParcelas.classList.add('bg-gray-100', 'text-gray-400');
@@ -435,7 +435,6 @@
                     tituloModal.innerHTML = '<i class="ph ph-plus-circle text-2xl text-green-500"></i> Novo Recebimento';
                 }
 
-                // Reseta a lógica de parcelas para estado de NOVO Lançamento
                 if (!financeiroEmEdicaoId) {
                     const chkParcelas = document.getElementById('fin-tem-parcelas');
                     const inputParcelas = document.getElementById('fin-parcelas');
@@ -767,7 +766,6 @@
                 document.getElementById('fin-status').value = data.status;
                 document.getElementById('fin-forma-pagamento').value = data.forma_pagamento;
                 
-                // Bloqueia a checkbox e o input de edição para segurança dos dados
                 document.getElementById('fin-tem-parcelas').checked = false;
                 document.getElementById('fin-tem-parcelas').disabled = true;
                 
