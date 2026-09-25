@@ -19,6 +19,7 @@
         }
         .tab-active-receber { background-color: #22c55e !important; color: white !important; }
         .tab-active-pagar { background-color: #ef4444 !important; color: white !important; }
+        .tab-active-baixas { background-color: #3b82f6 !important; color: white !important; }
     </style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">
@@ -177,12 +178,13 @@
             <div class="flex gap-2 mb-2 shrink-0">
                 <button id="tab-receber" onclick="switchFinTab('receber')" class="px-6 py-2 rounded-t-lg bg-green-500 text-white text-xs transition-colors">CONTAS A RECEBER</button>
                 <button id="tab-pagar" onclick="switchFinTab('pagar')" class="px-6 py-2 rounded-t-lg bg-gray-200 text-gray-600 hover:bg-gray-300 text-xs transition-colors">CONTAS A PAGAR</button>
+                <button id="tab-baixas" onclick="switchFinTab('baixas')" class="px-6 py-2 rounded-t-lg bg-gray-200 text-gray-600 hover:bg-gray-300 text-xs transition-colors">BAIXAS</button>
             </div>
 
             <div class="bg-gray-900 rounded-xl rounded-tl-none p-2 flex items-center gap-4 shrink-0 mb-4">
                 <div class="flex items-center gap-2 px-4 border-r border-gray-700">
                     <span id="badge-fin-tipo" class="bg-green-500 text-white text-[10px] px-2 py-1 rounded">CONTAS A RECEBER</span>
-                    <button onclick="openModal('modal-financeiro')" class="text-white flex items-center gap-2 hover:text-gray-300 transition-colors ml-2 text-sm">
+                    <button id="btn-novo-fin" onclick="openModal('modal-financeiro')" class="text-white flex items-center gap-2 hover:text-gray-300 transition-colors ml-2 text-sm">
                         <i class="ph ph-plus"></i> NOVO
                     </button>
                 </div>
@@ -267,6 +269,8 @@
             </div>
             
             <form id="form-financeiro" class="p-6 space-y-4 overflow-y-auto flex-1" onsubmit="salvarFinanceiro(event)">
+                <input type="hidden" id="fin-tipo-hidden" value="receber">
+                
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label class="block text-xs text-gray-500 mb-1">Descrição *</label>
@@ -278,7 +282,7 @@
                     </div>
                     <div>
                         <label id="fin-label-vencimento" class="block text-xs text-gray-500 mb-1">Vencimento (1ª Parcela) *</label>
-                        <input type="date" id="fin-vencimento" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
+                        <input type="date" id="fin-vencimento" max="2100-12-31" required class="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
                     </div>
                     
                     <div id="fin-div-parcelamento">
@@ -290,7 +294,7 @@
                         </div>
                         <div class="flex gap-2">
                             <input type="number" id="fin-parcelas" min="1" value="1" disabled required class="w-1/2 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none bg-gray-100 text-gray-400" title="Quantidade de parcelas">
-                            <input type="number" id="fin-intervalo" min="1" value="30" disabled required class="w-1/2 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none bg-gray-100 text-gray-400" title="Dias de intervalo entre parcelas">
+                            <input type="number" id="fin-intervalo" min="1" max="45" value="30" oninput="if(this.value > 45) this.value = 45;" disabled required class="w-1/2 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:border-gray-900 outline-none bg-gray-100 text-gray-400" title="Dias de intervalo entre parcelas (Máximo 45 dias)">
                         </div>
                     </div>
 
@@ -461,13 +465,27 @@
             tipoFinanceiroAtual = tipo;
             const tabRec = document.getElementById('tab-receber');
             const tabPag = document.getElementById('tab-pagar');
+            const tabBaixas = document.getElementById('tab-baixas');
             const badge = document.getElementById('badge-fin-tipo');
+            const btnNovo = document.getElementById('btn-novo-fin');
 
             tabRec.className = `px-6 py-2 rounded-t-lg text-xs transition-colors ${tipo === 'receber' ? 'tab-active-receber' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`;
             tabPag.className = `px-6 py-2 rounded-t-lg text-xs transition-colors ${tipo === 'pagar' ? 'tab-active-pagar' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`;
+            tabBaixas.className = `px-6 py-2 rounded-t-lg text-xs transition-colors ${tipo === 'baixas' ? 'tab-active-baixas' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`;
             
-            badge.className = `text-white text-[10px] px-2 py-1 rounded ${tipo === 'receber' ? 'bg-green-500' : 'bg-red-500'}`;
-            badge.innerText = tipo === 'receber' ? 'CONTAS A RECEBER' : 'CONTAS A PAGAR';
+            if (tipo === 'receber') {
+                badge.className = 'text-white text-[10px] px-2 py-1 rounded bg-green-500';
+                badge.innerText = 'CONTAS A RECEBER';
+                btnNovo.classList.remove('hidden');
+            } else if (tipo === 'pagar') {
+                badge.className = 'text-white text-[10px] px-2 py-1 rounded bg-red-500';
+                badge.innerText = 'CONTAS A PAGAR';
+                btnNovo.classList.remove('hidden');
+            } else {
+                badge.className = 'text-white text-[10px] px-2 py-1 rounded bg-blue-500';
+                badge.innerText = 'BAIXAS REALIZADAS';
+                btnNovo.classList.add('hidden');
+            }
 
             if (supabaseClient) loadFinanceiro(); 
         }
@@ -491,6 +509,8 @@
                 }
 
                 if (modalActionContext === 'novo') {
+                    document.getElementById('fin-tipo-hidden').value = tipoFinanceiroAtual;
+                    
                     const chkParcelas = document.getElementById('fin-tem-parcelas');
                     const inputParcelas = document.getElementById('fin-parcelas');
                     const inputIntervalo = document.getElementById('fin-intervalo');
@@ -658,7 +678,15 @@
             const { data: todos, error: errAll } = await supabaseClient.from('financeiro').select('*').eq('apagado', 'N');
             if (!errAll && todos) atualizarResumos(todos);
 
-            const { data, error } = await supabaseClient.from('financeiro').select('*').eq('tipo', tipoFinanceiroAtual).eq('apagado', 'N').order('vencimento', { ascending: true });
+            let query = supabaseClient.from('financeiro').select('*').eq('apagado', 'N').order('vencimento', { ascending: true });
+            
+            if (tipoFinanceiroAtual === 'baixas') {
+                query = query.eq('baixado', 'S');
+            } else {
+                query = query.eq('tipo', tipoFinanceiroAtual).eq('baixado', 'N');
+            }
+
+            const { data, error } = await query;
             if (error) return console.error('Erro', error);
 
             const tbody = document.getElementById('tabela-financeiro-body');
@@ -697,6 +725,8 @@
                     const item = baseItem;
                     let displayStatus = item.status;
                     let badgeCor = item.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
+                    let corValor = item.tipo === 'receber' ? 'text-green-600' : 'text-red-600';
+                    let iconeTipo = item.tipo === 'receber' ? '<i class="ph ph-arrow-circle-up text-green-500 mr-1"></i>' : '<i class="ph ph-arrow-circle-down text-red-500 mr-1"></i>';
                     
                     if (item.baixado === 'S') {
                         displayStatus = 'Baixado';
@@ -710,7 +740,7 @@
                             <td class="py-3 px-4 font-medium text-gray-900">${item.descricao}</td>
                             <td class="py-3 px-4 text-gray-500">${item.cliente || '-'}</td>
                             <td class="py-3 px-2 text-gray-500 text-center">${item.parcela || '1/1'}</td>
-                            <td class="py-3 px-4 font-medium text-gray-900">R$ ${parseFloat(item.valor_total).toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 font-bold ${corValor} flex items-center">${tipoFinanceiroAtual === 'baixas' ? iconeTipo : ''} R$ ${parseFloat(item.valor_total).toFixed(2).replace('.', ',')}</td>
                             <td class="py-3 px-4 text-gray-500">R$ ${parseFloat(item.valor_pago || 0).toFixed(2).replace('.', ',')}</td>
                             <td class="py-3 px-4"><span class="px-2 py-1 rounded text-[10px] ${badgeCor} font-bold tracking-wide">${displayStatus}</span></td>
                             <td class="py-3 px-4 text-center">
@@ -727,6 +757,8 @@
                     
                     let statusGrupo = 'Pendente';
                     let badgeMaster = 'bg-yellow-100 text-yellow-700';
+                    let corValorGrupo = baseItem.tipo === 'receber' ? 'text-green-600' : 'text-red-600';
+                    let iconeTipoGrupo = baseItem.tipo === 'receber' ? '<i class="ph ph-arrow-circle-up text-green-500 mr-1"></i>' : '<i class="ph ph-arrow-circle-down text-red-500 mr-1"></i>';
                     
                     if (isGroupBaixado) {
                         statusGrupo = 'Baixado';
@@ -746,7 +778,7 @@
                             <td class="py-3 px-4 font-bold text-gray-900">${descMaster}</td>
                             <td class="py-3 px-4 text-gray-700">${baseItem.cliente || '-'}</td>
                             <td class="py-3 px-2 text-gray-700 text-center font-bold">${numParcelas}x</td>
-                            <td class="py-3 px-4 font-bold text-gray-900">R$ ${totalValor.toFixed(2).replace('.', ',')}</td>
+                            <td class="py-3 px-4 font-bold ${corValorGrupo} flex items-center">${tipoFinanceiroAtual === 'baixas' ? iconeTipoGrupo : ''} R$ ${totalValor.toFixed(2).replace('.', ',')}</td>
                             <td class="py-3 px-4 text-gray-700 font-bold">R$ ${totalPago.toFixed(2).replace('.', ',')}</td>
                             <td class="py-3 px-4"><span class="px-2 py-1 rounded text-[10px] ${badgeMaster} font-bold tracking-wide">${statusGrupo}</span></td>
                             <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
@@ -760,6 +792,8 @@
                     itens.forEach(item => {
                         let displayStatusP = item.status;
                         let badgeCorP = item.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
+                        let corValorP = item.tipo === 'receber' ? 'text-green-600' : 'text-red-600';
+                        
                         if (item.baixado === 'S') {
                             displayStatusP = 'Baixado';
                             badgeCorP = 'bg-blue-100 text-blue-700';
@@ -775,7 +809,7 @@
                                 <td class="py-2 px-4 text-gray-600 font-medium text-sm pl-8">${descParcela}</td>
                                 <td class="py-2 px-4 text-gray-400 text-sm">-</td>
                                 <td class="py-2 px-2 text-gray-500 text-sm text-center">${item.parcela}</td>
-                                <td class="py-2 px-4 text-gray-600 text-sm">R$ ${parseFloat(item.valor_total).toFixed(2).replace('.', ',')}</td>
+                                <td class="py-2 px-4 font-medium ${corValorP} text-sm">R$ ${parseFloat(item.valor_total).toFixed(2).replace('.', ',')}</td>
                                 <td class="py-2 px-4 text-gray-600 text-sm">R$ ${parseFloat(item.valor_pago || 0).toFixed(2).replace('.', ',')}</td>
                                 <td class="py-2 px-4"><span class="px-2 py-0.5 rounded text-[10px] ${badgeCorP} font-bold">${displayStatusP}</span></td>
                                 <td class="py-2 px-4 text-center">
@@ -831,7 +865,8 @@
 
         async function salvarFinanceiro(event) {
             event.preventDefault();
-            const tipo = tipoFinanceiroAtual;
+            const tipo = document.getElementById('fin-tipo-hidden').value;
+            
             const descricao = document.getElementById('fin-descricao').value;
             const cliente = document.getElementById('fin-cliente').value;
             const dataBase = document.getElementById('fin-vencimento').value;
@@ -972,6 +1007,8 @@
         async function editarFinanceiro(id) {
             const { data } = await supabaseClient.from('financeiro').select('*').eq('id', id).single();
             if (data) {
+                document.getElementById('fin-tipo-hidden').value = data.tipo;
+                
                 const numParcelaText = data.parcela ? data.parcela.split('/')[0] : '1';
                 const descInput = document.getElementById('fin-descricao');
                 const labelVencimento = document.getElementById('fin-label-vencimento');
@@ -1002,9 +1039,7 @@
                 document.getElementById('fin-valor-total').value = formatarNumeroParaMoeda(data.valor_total);
                 document.getElementById('fin-valor-pago').value = formatarNumeroParaMoeda(data.valor_pago || 0);
                 
-                // Se já estiver baixado, mostra como Pago no select para não quebrar a lógica visual do Modal
                 document.getElementById('fin-status').value = (data.status === 'Baixado' || data.status === 'Pago' || data.baixado === 'S') ? 'Pago' : data.status;
-                
                 document.getElementById('fin-forma-pagamento').value = data.forma_pagamento;
                 
                 document.getElementById('fin-valor-total').disabled = false;
@@ -1016,6 +1051,12 @@
                 financeiroEmEdicaoId = id;
                 financeiroEmEdicaoGrupoId = null;
                 
+                const tituloModal = document.getElementById('titulo-modal-financeiro');
+                const isPagar = data.tipo === 'pagar';
+                const tipoNome = isPagar ? 'Pagamento' : 'Recebimento';
+                const icone = isPagar ? '<i class="ph ph-minus-circle text-2xl text-red-500"></i>' : '<i class="ph ph-plus-circle text-2xl text-green-500"></i>';
+                tituloModal.innerHTML = modalActionContext === 'editar_parcela' ? `${icone} Editar Parcela` : `${icone} Editar ${tipoNome}`;
+                
                 openModal('modal-financeiro');
             }
         }
@@ -1025,6 +1066,8 @@
             if (data && data.length > 0) {
                 const numParcelas = data.length;
                 const baseItem = data[0];
+
+                document.getElementById('fin-tipo-hidden').value = baseItem.tipo;
 
                 const descInput = document.getElementById('fin-descricao');
                 descInput.value = baseItem.descricao.replace(/ \(Parc\. \d+\/\d+\)$/, '');
@@ -1090,6 +1133,12 @@
                 financeiroEmEdicaoGrupoId = gId;
                 financeiroEmEdicaoId = null;
                 modalActionContext = 'editar_mestre';
+                
+                const tituloModal = document.getElementById('titulo-modal-financeiro');
+                const isPagar = baseItem.tipo === 'pagar';
+                const tipoNome = isPagar ? 'Pagamento' : 'Recebimento';
+                const icone = isPagar ? '<i class="ph ph-minus-circle text-2xl text-red-500"></i>' : '<i class="ph ph-plus-circle text-2xl text-green-500"></i>';
+                tituloModal.innerHTML = `${icone} Editar ${tipoNome}`;
                 
                 openModal('modal-financeiro');
             }
