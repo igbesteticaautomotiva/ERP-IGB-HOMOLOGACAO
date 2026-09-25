@@ -26,10 +26,21 @@ async function loadClientes() {
     }
 
     data.forEach(cliente => {
+        // Formata o número do WhatsApp para a URL
+        let waNumber = cliente.telefone.replace(/\D/g, '');
+        if (waNumber.length >= 10) waNumber = '55' + waNumber;
+
         tbody.innerHTML += `
             <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                 <td class="py-3 px-6 font-medium text-gray-900">${cliente.nome}</td>
-                <td class="py-3 px-6">${cliente.telefone}</td>
+                <td class="py-3 px-6">
+                    <div class="flex items-center gap-2">
+                        <span>${cliente.telefone}</span>
+                        <a href="https://wa.me/${waNumber}" target="_blank" title="Chamar no WhatsApp" class="text-green-500 hover:text-green-600 transition-colors flex items-center">
+                            <i class="ph ph-whatsapp-logo text-xl"></i>
+                        </a>
+                    </div>
+                </td>
                 <td class="py-3 px-6 text-gray-500 truncate max-w-[200px]">${cliente.endereco || '-'}</td>
                 <td class="py-3 px-6 text-gray-500">${cliente.email || '-'}</td>
                 <td class="py-3 px-6 text-gray-500">${cliente.ultimo_servico || 'Sem registros'}</td>
@@ -90,4 +101,14 @@ function pesquisarClientes() {
         } else { tr[i].style.display = "none"; }
     }
     document.getElementById('contador-clientes').innerText = count;
+}
+
+function chamarWhatsappModal() {
+    let phoneInput = document.getElementById('cli-telefone').value;
+    let numbers = phoneInput.replace(/\D/g, '');
+    if (numbers.length >= 10) {
+        window.open(`https://wa.me/55${numbers}`, '_blank');
+    } else {
+        alert("Por favor, insira um número de telefone válido antes de chamar no WhatsApp.");
+    }
 }
