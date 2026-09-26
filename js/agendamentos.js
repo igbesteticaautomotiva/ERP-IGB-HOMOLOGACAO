@@ -18,7 +18,7 @@ function formatarDataExibicao(data) {
 }
 
 function initAgendamentos() {
-    dataAtualFiltro = new Date(); // Inicia sempre no dia de hoje
+    dataAtualFiltro = new Date(); 
     atualizarLabelDataFiltro();
     loadAgendamentos();
 }
@@ -35,10 +35,8 @@ function irParaHoje() {
     loadAgendamentos();
 }
 
-// Nova função chamada pelo calendário invisível
 function mudarDataPeloCalendario(dataStr) {
     if (!dataStr) return;
-    // Separa a string YYYY-MM-DD para evitar bugs de fuso horário
     const [ano, mes, dia] = dataStr.split('-');
     dataAtualFiltro = new Date(ano, parseInt(mes) - 1, dia);
     
@@ -47,22 +45,96 @@ function mudarDataPeloCalendario(dataStr) {
 }
 
 function atualizarLabelDataFiltro() {
-    // Atualiza o texto na tela
     document.getElementById('label-data-filtro').innerText = formatarDataExibicao(dataAtualFiltro);
-    
-    // Mantém o input invisível sincronizado com a data que estamos exibindo
     const inputFiltro = document.getElementById('input-data-filtro');
     if (inputFiltro) {
         inputFiltro.value = formatarDataParaBanco(dataAtualFiltro);
     }
 }
 
-function openModalAgendamento() {
+async function carregarVeiculosDoCliente(clienteNome, veiculoPreSelecionado = null) {
+    const selVeiculo = document.getElementById('agen-veiculo');
+    selVeiculo.innerHTML = '<option value="" selected>Carregando...</option>';
+
+    if (!clienteNome) {
+        selVeiculo.innerHTML = '<option value="" selected>Selecione o cliente primeiro...</option>';
+        return;
+    }
+
+    const { data: veiculos } = await supabaseClient
+        .from('veiculos')
+        .select('nome, cor')
+        .eq('cliente_nome', clienteNome)
+        .eq('apagado', 'N');
+
+    selVeiculo.innerHTML = '<option value="" selected>Nenhum veículo selecionado</option>'; 
+
+    if (veiculos && veiculos.length > 0) {
+        veiculos.forEach(v => {
+            const desc = v.cor ? `${v.nome} (${v.cor})` : v.nome;
+            const isSelected = (v.nome === veiculoPreSelecionado) ? 'selected' : '';
+            selVeiculo.innerHTML += `<option value="${v.nome}" ${isSelected}>${desc}</option>`;
+        });
+    } else {
+        selVeiculo.innerHTML = '<option value="" selected>Nenhum veículo cadastrado para este cliente</option>';
+    }
+
+    if (veiculoPreSelecionado && !veiculos?.some(v => v.nome === veiculoPreSelecionado)) {
+         selVeiculo.innerHTML += `<option value="${veiculoPreSelecionado}" selected>${veiculoPreSelecionado} (Não cadastrado)</option>`;
+    }
+}
+
+async function carregarDadosFormularioAgendamento() {
+    if (!supabaseClient) return;
+
+    const { data: clientes } = await supabaseClient.from('clientes').select('nome').eq('apagado', 'N').order('nome');
+    const selCliente = document.getElementById('agen-cliente');
+    selCliente.innerHTML = '<option value="" disabled selected>Selecione um cliente...</option>';
+    if(clientes) {
+        clientes.forEach(cli => {
+            selCliente.innerHTML += `<option value="${cli.nome}">${cli.nome}</option>`;
+        });
+    }
+
+    selCliente.onchange = () => carregarVeiculosDoCliente(selCliente.value);
+
+    const { data: servicos } = await supabaseClient.from('servicos').select('nome, preco').eq('apagado', 'N').eq('status', 'Ativo').order('nome');
+    const contServicos = document.getElementById('agen-servicos-container');
+    contServicos.innerHTML = '';
+    if(servicos && servicos.length > 0) {
+        servicos.forEach(srv => {
+            contServicos.innerHTML += `
+                <label class="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors text-sm w-full md:w-auto">
+                    <input type="checkbox" class="chk-servico rounded border-gray-300 text-blue-600 focus:ring-blue-500" value="${srv.nome}" data-preco="${srv.preco}" onchange="calcularTotalAgendamento()">
+                    <span>${srv.nome} <span class="text-gray-400 text-xs">(R$ ${parseFloat(srv.preco).toFixed(2).replace('.', ',')})</span></span>
+                </label>
+            `;
+        });
+    } else {
+        contServicos.innerHTML = '<span class="text-xs text-gray-400">Nenhum serviço ativo encontrado. Cadastre em "Serviços".</span>';
+    }
+}
+
+function calcularTotalAgendamento() {
+    let total = 0;
+    document.querySelectorAll('.chk-servico:checked').forEach(chk => {
+        total += parseFloat(chk.getAttribute('data-preco') || 0);
+    });
+    document.getElementById('agen-valor').value = formatarNumeroParaMoeda(total);
+}
+
+async function openModalAgendamento() {
+    await carregarDadosFormularioAgendamento(); 
+    
     document.getElementById('modal-agendamento').classList.remove('hidden');
+    
     if (!agendamentoEmEdicaoId) {
         document.getElementById('agen-data').value = formatarDataParaBanco(dataAtualFiltro);
         document.getElementById('agen-horario').value = "08:00";
         document.getElementById('agen-status').value = "Agendado";
+        document.getElementById('agen-valor').value = "";
+        
+        document.getElementById('agen-veiculo').innerHTML = '<option value="" selected>Selecione o cliente primeiro...</option>';
     }
 }
 
@@ -89,7 +161,6 @@ async function loadAgendamentos() {
     tbody.innerHTML = '';
     document.getElementById('pesquisa-agendamentos').value = ''; 
 
-    // Calculo dos Resumos (Cards)
     let countTotal = data.length;
     let countAndamento = 0;
     let countFinalizado = 0;
@@ -106,7 +177,6 @@ async function loadAgendamentos() {
     document.getElementById('card-agen-finalizado').innerText = countFinalizado;
     document.getElementById('card-agen-cancelado').innerText = countCancelado;
 
-    // Empty state
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -166,13 +236,18 @@ async function loadAgendamentos() {
 
 async function salvarAgendamento(event) {
     event.preventDefault();
+    
+    const servicosSelecionados = Array.from(document.querySelectorAll('.chk-servico:checked'))
+                                      .map(chk => chk.value)
+                                      .join(', ');
+
     const agendamento = {
         data_agendamento: document.getElementById('agen-data').value,
         horario: document.getElementById('agen-horario').value,
         cliente_nome: document.getElementById('agen-cliente').value,
         veiculo: document.getElementById('agen-veiculo').value,
         descricao: document.getElementById('agen-descricao').value,
-        servicos: document.getElementById('agen-servicos').value,
+        servicos: servicosSelecionados, 
         valor_total: desformatarMoeda(document.getElementById('agen-valor').value),
         status: document.getElementById('agen-status').value,
         apagado: 'N'
@@ -182,7 +257,31 @@ async function salvarAgendamento(event) {
         await supabaseClient.from('agendamentos').update(agendamento).eq('id', agendamentoEmEdicaoId);
     } else {
         await supabaseClient.from('agendamentos').insert([agendamento]);
+        
+        // Agora salva a categoria como "Agendamento" ao invés de jogar no título!
+        const novoFinanceiro = {
+            tipo: 'receber',
+            categoria: 'Agendamento',
+            descricao: agendamento.descricao,
+            cliente: agendamento.cliente_nome,
+            vencimento: agendamento.data_agendamento,
+            valor_total: agendamento.valor_total,
+            valor_pago: 0,
+            status: 'Pendente',
+            forma_pagamento: 'A Combinar',
+            apagado: 'N',
+            baixado: 'N',
+            parcela: '1/1',
+            grupo_id: gerarIdGrupo() 
+        };
+        
+        await supabaseClient.from('financeiro').insert([novoFinanceiro]);
+        
+        if (typeof loadFinanceiro === 'function') {
+            loadFinanceiro();
+        }
     }
+    
     closeModalAgendamento();
     loadAgendamentos();
 }
@@ -190,17 +289,35 @@ async function salvarAgendamento(event) {
 async function editarAgendamento(id) {
     const { data } = await supabaseClient.from('agendamentos').select('*').eq('id', id).single();
     if (data) {
+        agendamentoEmEdicaoId = id; 
+        await carregarDadosFormularioAgendamento();
+
         document.getElementById('agen-data').value = data.data_agendamento;
         document.getElementById('agen-horario').value = data.horario.substring(0,5);
-        document.getElementById('agen-cliente').value = data.cliente_nome;
-        document.getElementById('agen-veiculo').value = data.veiculo || '';
+        
+        const selCliente = document.getElementById('agen-cliente');
+        if(Array.from(selCliente.options).some(opt => opt.value === data.cliente_nome)) {
+            selCliente.value = data.cliente_nome;
+        } else {
+            selCliente.innerHTML += `<option value="${data.cliente_nome}">${data.cliente_nome} (Inativo)</option>`;
+            selCliente.value = data.cliente_nome;
+        }
+
+        await carregarVeiculosDoCliente(data.cliente_nome, data.veiculo);
+
         document.getElementById('agen-descricao').value = data.descricao || '';
-        document.getElementById('agen-servicos').value = data.servicos || '';
+        
+        const servicosArray = (data.servicos || '').split(',').map(s => s.trim());
+        document.querySelectorAll('.chk-servico').forEach(chk => {
+            if(servicosArray.includes(chk.value)) {
+                chk.checked = true;
+            }
+        });
+
         document.getElementById('agen-valor').value = formatarNumeroParaMoeda(data.valor_total);
         document.getElementById('agen-status').value = data.status;
         
-        agendamentoEmEdicaoId = id;
-        openModalAgendamento();
+        document.getElementById('modal-agendamento').classList.remove('hidden');
     }
 }
 
