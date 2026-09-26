@@ -108,131 +108,6 @@ async function darBaixaGrupo(gId, novoStatusBaixa) {
     }
 }
 
-// ==========================================
-// GERADOR DE RECIBOS (SEGURO - SEM BUGS DE SCRIPT)
-// ==========================================
-async function gerarRecibo(id) {
-    const { data } = await supabaseClient.from('financeiro').select('*').eq('id', id).single();
-    if (data) {
-        const telaImpressao = window.open('', '_blank');
-        const dataVenc = data.vencimento.split('-').reverse().join('/');
-        const valor = parseFloat(data.valor_total).toFixed(2).replace('.', ',');
-        let statusDoc = data.status.toUpperCase();
-        if (data.baixado === 'S') statusDoc = 'BAIXADO/PAGO';
-
-        telaImpressao.document.write(`
-            <html>
-            <head>
-                <title>Recibo - IGB Estética Automotiva</title>
-                <style>
-                    body { font-family: 'Courier New', Courier, monospace; color: #000; display: flex; justify-content: center; margin: 0; padding: 20px; background: #fff;}
-                    .receipt { width: 320px; border: 1px dashed #ccc; padding: 20px; }
-                    .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
-                    .header h2 { margin: 0 0 5px; font-size: 16px; }
-                    .header h3 { margin: 0; font-size: 14px; font-weight: normal; }
-                    .content { margin-bottom: 20px; line-height: 1.6; font-size: 12px; }
-                    .content p { margin: 5px 0; }
-                    .footer { text-align: center; border-top: 1px dashed #000; padding-top: 15px; font-weight: bold; font-size: 12px; }
-                    .bold { font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                <div class="receipt">
-                    <div class="header">
-                        <h2>IGB ESTÉTICA AUTOMOTIVA</h2>
-                        <h3>RECIBO DE ${data.tipo === 'receber' ? 'RECEBIMENTO' : 'PAGAMENTO'}</h3>
-                    </div>
-                    <div class="content">
-                        <p><span class="bold">Data/Vencimento:</span> ${dataVenc}</p>
-                        <p><span class="bold">Cliente/Fornecedor:</span> ${data.cliente || 'Consumidor Final'}</p>
-                        <p><span class="bold">Descrição:</span> ${data.descricao}</p>
-                        <p><span class="bold">Form. Pagamento:</span> ${data.forma_pagamento || '-'}</p>
-                        <p><span class="bold">Parcela:</span> ${data.parcela || '1/1'}</p>
-                        <p><span class="bold">Valor Total:</span> R$ ${valor}</p>
-                        <p><span class="bold">Status:</span> ${statusDoc}</p>
-                    </div>
-                    <div class="footer">
-                        <p>*** DOCUMENTO NÃO FISCAL ***</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `);
-        
-        telaImpressao.document.close();
-        telaImpressao.focus();
-        setTimeout(() => {
-            telaImpressao.print();
-            telaImpressao.close();
-        }, 500);
-    }
-}
-
-async function gerarReciboGrupo(gId) {
-    const { data } = await supabaseClient.from('financeiro').select('*').eq('grupo_id', gId).eq('apagado', 'N').order('vencimento', { ascending: true });
-    if (data && data.length > 0) {
-        const telaImpressao = window.open('', '_blank');
-        const baseItem = data[0];
-        const totalValor = data.reduce((acc, curr) => acc + parseFloat(curr.valor_total), 0).toFixed(2).replace('.', ',');
-        
-        let parcelasHtml = '';
-        data.forEach(p => {
-            let stat = p.baixado === 'S' ? 'Baixado' : p.status;
-            let numP = p.parcela ? p.parcela.split('/')[0] : '1';
-            parcelasHtml += `<p>- Parc. ${numP}: R$ ${parseFloat(p.valor_total).toFixed(2).replace('.', ',')} (${p.vencimento.split('-').reverse().join('/')}) - ${stat}</p>`;
-        });
-
-        telaImpressao.document.write(`
-            <html>
-            <head>
-                <title>Recibo Grupo - IGB Estética Automotiva</title>
-                <style>
-                    body { font-family: 'Courier New', Courier, monospace; color: #000; display: flex; justify-content: center; margin: 0; padding: 20px; background: #fff;}
-                    .receipt { width: 320px; border: 1px dashed #ccc; padding: 20px; }
-                    .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
-                    .header h2 { margin: 0 0 5px; font-size: 16px; }
-                    .header h3 { margin: 0; font-size: 14px; font-weight: normal; }
-                    .content { margin-bottom: 20px; line-height: 1.6; font-size: 12px; }
-                    .content p { margin: 5px 0; }
-                    .footer { text-align: center; border-top: 1px dashed #000; padding-top: 15px; font-weight: bold; font-size: 12px; }
-                    .bold { font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                <div class="receipt">
-                    <div class="header">
-                        <h2>IGB ESTÉTICA AUTOMOTIVA</h2>
-                        <h3>RECIBO DE ${baseItem.tipo === 'receber' ? 'RECEBIMENTO' : 'PAGAMENTO'}</h3>
-                    </div>
-                    <div class="content">
-                        <p><span class="bold">Cliente/Forn.:</span> ${baseItem.cliente || 'Consumidor Final'}</p>
-                        <p><span class="bold">Descrição:</span> ${baseItem.descricao.replace(/ \(Parc\. \d+\/\d+\)$/, '')}</p>
-                        <p><span class="bold">Form. Pagamento:</span> ${baseItem.forma_pagamento || '-'}</p>
-                        <p><span class="bold">Valor Total (Grupo):</span> R$ ${totalValor}</p>
-                        <br>
-                        <p class="bold" style="border-bottom: 1px dotted #000; padding-bottom: 3px;">Detalhamento das Parcelas:</p>
-                        ${parcelasHtml}
-                    </div>
-                    <div class="footer">
-                        <p>*** DOCUMENTO NÃO FISCAL ***</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `);
-        
-        telaImpressao.document.close();
-        telaImpressao.focus();
-        setTimeout(() => {
-            telaImpressao.print();
-            telaImpressao.close();
-        }, 500);
-    }
-}
-
-// ==========================================
-// RENDERIZAÇÃO DA TABELA
-// ==========================================
 async function loadFinanceiro() {
     if (!supabaseClient) return;
     const { data: todos, error: errAll } = await supabaseClient.from('financeiro').select('*').eq('apagado', 'N');
@@ -256,7 +131,7 @@ async function loadFinanceiro() {
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="py-12 text-center text-gray-400">
+                <td colspan="10" class="py-12 text-center text-gray-400">
                     <div class="flex flex-col items-center justify-center">
                         <i class="ph ph-folder-open text-4xl mb-3 text-gray-300"></i>
                         <p>Nenhuma informação cadastrada.</p>
@@ -297,6 +172,11 @@ async function loadFinanceiro() {
                 <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td class="py-3 px-4 text-center"></td>
                     <td class="py-3 px-4 text-gray-900">${item.vencimento.split('-').reverse().join('/')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-1 rounded bg-gray-100 text-[10px] font-bold text-gray-600 border border-gray-200 whitespace-nowrap">
+                            ${item.categoria || 'Avulso'}
+                        </span>
+                    </td>
                     <td class="py-3 px-4 font-medium text-gray-900">${item.descricao}</td>
                     <td class="py-3 px-4 text-gray-500">${item.cliente || '-'}</td>
                     <td class="py-3 px-2 text-gray-500 text-center">${item.parcela || '1/1'}</td>
@@ -305,7 +185,6 @@ async function loadFinanceiro() {
                     <td class="py-3 px-4"><span class="px-2 py-1 rounded text-[10px] ${badgeCor} font-bold tracking-wide">${displayStatus}</span></td>
                     <td class="py-3 px-4 text-center whitespace-nowrap">
                         <button onclick="darBaixa('${item.id}', '${item.baixado === 'S' ? 'N' : 'S'}', '${item.valor_total}')" title="${item.baixado === 'S' ? 'Estornar Baixa' : 'Dar Baixa (Receber/Pagar)'}" class="mx-1 ${item.baixado === 'S' ? 'text-blue-500 hover:text-blue-700' : 'text-green-500 hover:text-green-700'} transition-colors"><i class="ph ${item.baixado === 'S' ? 'ph-arrow-u-up-left' : 'ph-check-circle'} text-lg"></i></button>
-                        <button onclick="gerarRecibo('${item.id}')" title="Imprimir Recibo" class="mx-1 text-gray-400 hover:text-gray-800 transition-colors"><i class="ph ph-file-text text-lg"></i></button>
                         <button onclick="editarFinanceiro('${item.id}')" title="Editar" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
                         <button onclick="deletarFinanceiro('${item.id}')" title="Apagar" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-lg"></i></button>
                     </td>
@@ -336,6 +215,11 @@ async function loadFinanceiro() {
                 <tr class="border-b border-gray-100 bg-gray-100/60 hover:bg-gray-100 transition-colors cursor-pointer" onclick="toggleGrupo('${gId}')">
                     <td class="py-3 px-4 text-center"><i id="icon-${gId}" class="ph ph-caret-right text-gray-500 text-lg transition-transform"></i></td>
                     <td class="py-3 px-4 text-gray-900 font-bold">${proxVenc.vencimento.split('-').reverse().join('/')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-1 rounded bg-gray-200 text-[10px] font-bold text-gray-700 whitespace-nowrap">
+                            ${baseItem.categoria || 'Avulso'}
+                        </span>
+                    </td>
                     <td class="py-3 px-4 font-bold text-gray-900">${descMaster}</td>
                     <td class="py-3 px-4 text-gray-700">${baseItem.cliente || '-'}</td>
                     <td class="py-3 px-2 text-gray-700 text-center font-bold">${numParcelas}x</td>
@@ -344,7 +228,6 @@ async function loadFinanceiro() {
                     <td class="py-3 px-4"><span class="px-2 py-1 rounded text-[10px] ${badgeMaster} font-bold tracking-wide">${statusGrupo}</span></td>
                     <td class="py-3 px-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
                         <button onclick="darBaixaGrupo('${gId}', '${isGroupBaixado ? 'N' : 'S'}')" title="${isGroupBaixado ? 'Estornar Baixa do Grupo' : 'Dar Baixa em todas as parcelas listadas'}" class="mx-1 ${isGroupBaixado ? 'text-blue-500 hover:text-blue-700' : 'text-green-500 hover:text-green-700'} transition-colors"><i class="ph ${isGroupBaixado ? 'ph-arrow-u-up-left' : 'ph-check-circle'} text-lg"></i></button>
-                        <button onclick="gerarReciboGrupo('${gId}')" title="Imprimir Recibo do Grupo" class="mx-1 text-gray-400 hover:text-gray-800 transition-colors"><i class="ph ph-file-text text-lg"></i></button>
                         <button onclick="editarGrupo('${gId}')" title="Editar informações do grupo" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
                         <button onclick="deletarGrupo('${gId}')" title="Apagar lançamento completo" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-lg"></i></button>
                     </td>
@@ -368,6 +251,7 @@ async function loadFinanceiro() {
                     <tr class="border-b border-gray-50 bg-white hidden grupo-child-${gId} hover:bg-gray-50 transition-colors">
                         <td class="py-2 px-4 text-right"><i class="ph ph-arrow-elbow-down-right text-gray-300 text-lg"></i></td>
                         <td class="py-2 px-4 text-gray-500 text-sm">${item.vencimento.split('-').reverse().join('/')}</td>
+                        <td class="py-2 px-4 text-center text-gray-400">-</td>
                         <td class="py-2 px-4 text-gray-600 font-medium text-sm pl-8">${descParcela}</td>
                         <td class="py-2 px-4 text-gray-400 text-sm">-</td>
                         <td class="py-2 px-2 text-gray-500 text-sm text-center">${item.parcela}</td>
@@ -376,7 +260,6 @@ async function loadFinanceiro() {
                         <td class="py-2 px-4"><span class="px-2 py-0.5 rounded text-[10px] ${badgeCorP} font-bold">${displayStatusP}</span></td>
                         <td class="py-2 px-4 text-center whitespace-nowrap">
                             <button onclick="darBaixa('${item.id}', '${item.baixado === 'S' ? 'N' : 'S'}', '${item.valor_total}')" title="${item.baixado === 'S' ? 'Estornar Baixa' : 'Dar Baixa'}" class="mx-1 ${item.baixado === 'S' ? 'text-blue-500 hover:text-blue-700' : 'text-green-500 hover:text-green-700'} transition-colors"><i class="ph ${item.baixado === 'S' ? 'ph-arrow-u-up-left' : 'ph-check-circle'} text-sm"></i></button>
-                            <button onclick="gerarRecibo('${item.id}')" title="Imprimir Recibo" class="mx-1 text-gray-400 hover:text-gray-800 transition-colors"><i class="ph ph-file-text text-sm"></i></button>
                             <button onclick="editarFinanceiro('${item.id}')" title="Editar parcela" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-sm"></i></button>
                             <button onclick="deletarFinanceiro('${item.id}')" title="Apagar parcela" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-sm"></i></button>
                         </td>
@@ -424,13 +307,11 @@ function atualizarResumos(dados) {
     document.getElementById('resumo-pag-pendente').innerText = formatarNumeroParaMoeda(pagPendente);
 }
 
-// ==========================================
-// SALVAR, EDITAR E DELETAR
-// ==========================================
 async function salvarFinanceiro(event) {
     event.preventDefault();
     const tipo = document.getElementById('fin-tipo-hidden').value;
     
+    const categoria = document.getElementById('fin-categoria').value;
     const descricao = document.getElementById('fin-descricao').value;
     const cliente = document.getElementById('fin-cliente').value;
     const dataBase = document.getElementById('fin-vencimento').value;
@@ -449,7 +330,7 @@ async function salvarFinanceiro(event) {
     if (financeiroEmEdicaoId) {
         const isParcelaFilha = modalActionContext === 'editar_parcela';
         const fin = {
-            tipo, cliente, vencimento: dataBase,
+            tipo, categoria, cliente, vencimento: dataBase,
             valor_total: valorTotalBase, valor_pago: valorPagoBase,
             status: statusFinal, forma_pagamento, apagado: 'N'
         };
@@ -503,6 +384,7 @@ async function salvarFinanceiro(event) {
             let novaDesc = numParcelasAtuais > 1 ? `${descricao} (Parc. ${p.parcela})` : descricao;
 
             await supabaseClient.from('financeiro').update({
+                categoria: categoria,
                 descricao: novaDesc,
                 cliente: cliente,
                 vencimento: vencFormatado,
@@ -548,6 +430,7 @@ async function salvarFinanceiro(event) {
 
             registros.push({
                 tipo: tipo,
+                categoria: categoria,
                 descricao: descricao, 
                 cliente: cliente,
                 vencimento: vencFormatado,
@@ -573,6 +456,8 @@ async function editarFinanceiro(id) {
     if (data) {
         document.getElementById('fin-tipo-hidden').value = data.tipo;
         
+        document.getElementById('fin-categoria').value = data.categoria || 'Avulso';
+
         const numParcelaText = data.parcela ? data.parcela.split('/')[0] : '1';
         const descInput = document.getElementById('fin-descricao');
         const labelVencimento = document.getElementById('fin-label-vencimento');
@@ -632,6 +517,7 @@ async function editarGrupo(gId) {
         const baseItem = data[0];
 
         document.getElementById('fin-tipo-hidden').value = baseItem.tipo;
+        document.getElementById('fin-categoria').value = baseItem.categoria || 'Avulso';
 
         const descInput = document.getElementById('fin-descricao');
         descInput.value = baseItem.descricao.replace(/ \(Parc\. \d+\/\d+\)$/, '');
