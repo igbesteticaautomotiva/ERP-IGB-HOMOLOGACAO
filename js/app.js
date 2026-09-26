@@ -5,6 +5,8 @@ let clienteEmEdicaoId = null;
 let financeiroEmEdicaoId = null;
 let financeiroEmEdicaoGrupoId = null; 
 let agendamentoEmEdicaoId = null; 
+let servicoEmEdicaoId = null; 
+let veiculoEmEdicaoId = null; // Novo estado para Veículos
 let tipoFinanceiroAtual = 'receber'; 
 let modalActionContext = 'novo'; 
 
@@ -51,12 +53,14 @@ function verificarStatusAutomatico() {
 }
 
 // ==========================================
-// NAVEGAÇÃO
+// NAVEGAÇÃO E MODAIS
 // ==========================================
 function switchTab(viewId, title, elementoClicado = null) {
     document.getElementById('view-clientes').classList.add('hidden');
     document.getElementById('view-financeiro').classList.add('hidden');
     document.getElementById('view-agendamentos').classList.add('hidden');
+    document.getElementById('view-servicos').classList.add('hidden');
+    document.getElementById('view-veiculos').classList.add('hidden');
     document.getElementById('view-construcao').classList.add('hidden');
     
     document.getElementById('page-title').innerText = title;
@@ -83,6 +87,16 @@ function switchTab(viewId, title, elementoClicado = null) {
         document.getElementById('nav-agendamentos').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
         if (typeof supabaseClient !== 'undefined' && supabaseClient) initAgendamentos();
     }
+    else if (viewId === 'servicos') {
+        document.getElementById('view-servicos').classList.remove('hidden');
+        document.getElementById('nav-servicos').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) loadServicos();
+    }
+    else if (viewId === 'veiculos') {
+        document.getElementById('view-veiculos').classList.remove('hidden');
+        document.getElementById('nav-veiculos').classList.add('bg-gray-800', 'text-white', 'border-l-4', 'border-white', 'rounded-r-lg');
+        if (typeof supabaseClient !== 'undefined' && supabaseClient) loadVeiculos();
+    }
     else {
         document.getElementById('view-construcao').classList.remove('hidden');
         if (navItem && navItem.classList) {
@@ -91,20 +105,13 @@ function switchTab(viewId, title, elementoClicado = null) {
     }
 }
 
-// ==========================================
-// MODAIS GLOBAIS
-// ==========================================
 function openModal(modalId) {
     document.getElementById(modalId).classList.remove('hidden');
     
     if (modalId === 'modal-financeiro') {
         const tituloModal = document.getElementById('titulo-modal-financeiro');
-        
-        // Só montamos o título do zero se for um NOVO lançamento.
-        // Se for Edição, o arquivo financeiro.js já configurou o título corretamente.
         if (modalActionContext === 'novo') {
             document.getElementById('fin-tipo-hidden').value = tipoFinanceiroAtual;
-            
             const isPagar = tipoFinanceiroAtual === 'pagar';
             const tipoNome = isPagar ? 'Pagamento' : 'Recebimento';
             const icone = isPagar 
@@ -157,6 +164,11 @@ function closeModal(modalId) {
         clienteEmEdicaoId = null;
     }
     
+    if (modalId === 'modal-veiculo') {
+        document.getElementById('form-veiculo').reset();
+        veiculoEmEdicaoId = null;
+    }
+    
     if (modalId === 'modal-financeiro') {
         document.getElementById('form-financeiro').reset();
         financeiroEmEdicaoId = null;
@@ -175,16 +187,17 @@ function closeModal(modalId) {
 // INICIALIZAÇÃO EVENTOS GLOBAIS
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Máscara Telefone
-    const cliTelefone = document.getElementById('cli-telefone');
-    if(cliTelefone) {
-        cliTelefone.addEventListener('input', function (e) {
-            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
-            e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
-        });
-    }
+    const aplicarMascaraTelefone = function (e) {
+        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+        e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+    };
 
-    // Máscaras Financeiro
+    const cliTelefone = document.getElementById('cli-telefone');
+    if(cliTelefone) cliTelefone.addEventListener('input', aplicarMascaraTelefone);
+    
+    const veiTelefone = document.getElementById('vei-cliente-telefone');
+    if(veiTelefone) veiTelefone.addEventListener('input', aplicarMascaraTelefone);
+
     const inputValorTotal = document.getElementById('fin-valor-total');
     const inputValorPago = document.getElementById('fin-valor-pago');
     const selectStatus = document.getElementById('fin-status');
@@ -205,7 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Máscara de Moeda Agendamentos
     const inputValorAgendamento = document.getElementById('agen-valor');
     if(inputValorAgendamento) inputValorAgendamento.addEventListener('input', aplicarMascaraMoeda);
+
+    const inputValorServico = document.getElementById('srv-preco');
+    if(inputValorServico) inputValorServico.addEventListener('input', aplicarMascaraMoeda);
 });
