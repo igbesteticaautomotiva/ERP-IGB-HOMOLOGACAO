@@ -1,15 +1,51 @@
 // ==========================================
 // MÓDULO VEÍCULOS
 // ==========================================
-function openModalVeiculo() {
+let idEditVeiculo = null;
+let listaClientesCache = [];
+
+async function carregarClientesNoModalVeiculo(clienteSelecionado = null) {
+    if (!supabaseClient) return;
+
+    const { data: clientes } = await supabaseClient.from('clientes').select('nome, telefone').eq('apagado', 'N').order('nome');
+    const selCliente = document.getElementById('vei-cliente-nome');
+    
+    selCliente.innerHTML = '<option value="" disabled selected>Selecione um cliente...</option>';
+    
+    if (clientes) {
+        listaClientesCache = clientes; 
+        clientes.forEach(cli => {
+            const isSelected = (cli.nome === clienteSelecionado) ? 'selected' : '';
+            selCliente.innerHTML += `<option value="${cli.nome}" ${isSelected}>${cli.nome}</option>`;
+        });
+    }
+
+    if (clienteSelecionado && !clientes?.some(c => c.nome === clienteSelecionado)) {
+         selCliente.innerHTML += `<option value="${clienteSelecionado}" selected>${clienteSelecionado} (Inativo)</option>`;
+    }
+}
+
+function preencherTelefoneClienteVeiculo() {
+    const nomeSelecionado = document.getElementById('vei-cliente-nome').value;
+    const cliente = listaClientesCache.find(c => c.nome === nomeSelecionado);
+    if (cliente && cliente.telefone) {
+        document.getElementById('vei-cliente-telefone').value = cliente.telefone;
+    }
+}
+
+async function openModalVeiculo() {
+    await carregarClientesNoModalVeiculo();
     openModal('modal-veiculo');
-    if (!veiculoEmEdicaoId) {
+    if (!idEditVeiculo) {
         document.getElementById('vei-status').value = "Ativo";
+        document.getElementById('vei-cliente-telefone').value = ""; 
     }
 }
 
 function closeModalVeiculo() {
     closeModal('modal-veiculo');
+    document.getElementById('form-veiculo').reset();
+    idEditVeiculo = null;
 }
 
 async function loadVeiculos() {
@@ -42,12 +78,10 @@ async function loadVeiculos() {
     }
 
     data.forEach(item => {
-        // Formatar Badge de Status
         let badgeClass = "bg-gray-200 text-gray-700";
-        if(item.status === 'Ativo') badgeClass = "bg-[#4ade80] text-green-900"; // Verde
-        else if(item.status === 'Inativo') badgeClass = "bg-[#f87171] text-red-900"; // Vermelho
+        if(item.status === 'Ativo') badgeClass = "bg-[#4ade80] text-green-900"; 
+        else if(item.status === 'Inativo') badgeClass = "bg-[#f87171] text-red-900"; 
 
-        // Tratar formatação dupla nas colunas
         const telefoneHtml = item.cliente_telefone ? `<span class="text-xs text-gray-500 block">${item.cliente_telefone}</span>` : '';
         const ultimoServData = item.ultimo_servico_data ? `<span class="text-xs text-gray-500 block">${item.ultimo_servico_data.split('-').reverse().join('/')}</span>` : '';
 
@@ -92,8 +126,8 @@ async function salvarVeiculo(event) {
         apagado: 'N'
     };
 
-    if (veiculoEmEdicaoId) {
-        await supabaseClient.from('veiculos').update(veiculo).eq('id', veiculoEmEdicaoId);
+    if (idEditVeiculo) {
+        await supabaseClient.from('veiculos').update(veiculo).eq('id', idEditVeiculo);
     } else {
         await supabaseClient.from('veiculos').insert([veiculo]);
     }
@@ -104,8 +138,11 @@ async function salvarVeiculo(event) {
 async function editarVeiculo(id) {
     const { data } = await supabaseClient.from('veiculos').select('*').eq('id', id).single();
     if (data) {
+        idEditVeiculo = id;
+        
+        await carregarClientesNoModalVeiculo(data.cliente_nome);
+
         document.getElementById('vei-nome').value = data.nome;
-        document.getElementById('vei-cliente-nome').value = data.cliente_nome;
         document.getElementById('vei-cliente-telefone').value = data.cliente_telefone || '';
         document.getElementById('vei-cor').value = data.cor || '';
         document.getElementById('vei-ano').value = data.ano || '';
@@ -113,8 +150,7 @@ async function editarVeiculo(id) {
         document.getElementById('vei-ultimo-data').value = data.ultimo_servico_data || '';
         document.getElementById('vei-status').value = data.status;
         
-        veiculoEmEdicaoId = id;
-        openModalVeiculo();
+        openModal('modal-veiculo');
     }
 }
 
