@@ -1,29 +1,20 @@
 // ==========================================
 // MÓDULO CLIENTES
 // ==========================================
+let idEditCliente = null;
 
-// Função para abrir NOVO Cliente do zero
 function abrirModalNovoCliente() {
-    clienteEmEdicaoId = null;
+    idEditCliente = null;
     document.getElementById('form-cliente').reset();
     
-    // Título novo
     document.getElementById('titulo-modal-cliente').innerText = "Cadastro de Cliente";
-    
-    // Esconde o menu de abas e força exibir a aba de Dados
     document.getElementById('cli-tabs-nav').classList.add('hidden');
     switchCliTab('dados');
-    
-    // Esconde as áreas de exibição da edição
     document.getElementById('cli-veiculos-cadastrados-container').classList.add('hidden');
-    
-    // Em um novo cliente, NÃO escondemos o form do veículo, apenas deixamos ele aguardando o clique do botão
-    toggleNovoVeiculoForm(true); // true força a esconder e resetar o botão
-    
+    toggleNovoVeiculoForm(true); 
     openModal('modal-cliente');
 }
 
-// Controle das Abas (Dados vs Histórico)
 function switchCliTab(tab) {
     const btnDados = document.getElementById('tab-cli-btn-dados');
     const btnHist = document.getElementById('tab-cli-btn-historico');
@@ -43,7 +34,6 @@ function switchCliTab(tab) {
     }
 }
 
-// Mostra/Esconde a sessão de Adicionar Veículo
 function toggleNovoVeiculoForm(forceHide = false) {
     const formContainer = document.getElementById('cli-novo-veiculo-form');
     const btn = document.getElementById('btn-revelar-veiculo');
@@ -54,7 +44,6 @@ function toggleNovoVeiculoForm(forceHide = false) {
         btn.classList.remove('text-red-500');
         btn.classList.add('text-blue-600');
         
-        // Limpa os campos se fechar
         document.getElementById('cli-veiculo-modelo').value = '';
         document.getElementById('cli-veiculo-cor').value = '';
         document.getElementById('cli-veiculo-ano').value = '';
@@ -66,7 +55,6 @@ function toggleNovoVeiculoForm(forceHide = false) {
     }
 }
 
-// Expande a lista de veículos existentes
 function toggleListaVeiculos() {
     const btn = document.getElementById('btn-mostrar-veiculos');
     const extras = document.querySelectorAll('.veiculo-extra');
@@ -158,8 +146,8 @@ async function salvarCliente(event) {
     const veiculoCor = document.getElementById('cli-veiculo-cor').value;
     const veiculoAno = document.getElementById('cli-veiculo-ano').value;
 
-    if (clienteEmEdicaoId) {
-        await supabaseClient.from('clientes').update(cliente).eq('id', clienteEmEdicaoId);
+    if (idEditCliente) {
+        await supabaseClient.from('clientes').update(cliente).eq('id', idEditCliente);
     } else {
         await supabaseClient.from('clientes').insert([cliente]);
     }
@@ -185,23 +173,18 @@ async function salvarCliente(event) {
 async function editarCliente(id) {
     const { data } = await supabaseClient.from('clientes').select('*').eq('id', id).single();
     if (data) {
-        clienteEmEdicaoId = id;
+        idEditCliente = id;
 
-        // Reseta tudo e exibe a Aba de Dados
         document.getElementById('titulo-modal-cliente').innerText = `Editar: ${data.nome}`;
         document.getElementById('cli-tabs-nav').classList.remove('hidden');
         switchCliTab('dados');
         toggleNovoVeiculoForm(true); 
 
-        // Popula os Dados do Cliente
         document.getElementById('cli-nome').value = data.nome || '';
         document.getElementById('cli-telefone').value = data.telefone || '';
         document.getElementById('cli-email').value = data.email || '';
         document.getElementById('cli-endereco').value = data.endereco || '';
 
-        // ==========================================
-        // 1. CARREGAR VEÍCULOS EXISTENTES
-        // ==========================================
         const { data: veiculos } = await supabaseClient.from('veiculos').select('*').eq('cliente_nome', data.nome).eq('apagado', 'N');
         const contVeiculos = document.getElementById('cli-veiculos-cadastrados-container');
         const listaVeiculos = document.getElementById('cli-lista-veiculos');
@@ -235,9 +218,6 @@ async function editarCliente(id) {
             contVeiculos.classList.add('hidden');
         }
 
-        // ==========================================
-        // 2. CARREGAR HISTÓRICO DE AGENDAMENTOS NA ABA
-        // ==========================================
         const { data: agendamentos } = await supabaseClient.from('agendamentos').select('*').eq('cliente_nome', data.nome).eq('apagado', 'N').order('data_agendamento', { ascending: false });
         const listaAgendamentos = document.getElementById('cli-lista-agendamentos');
         
