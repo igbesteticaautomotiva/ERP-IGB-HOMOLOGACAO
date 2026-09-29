@@ -1,6 +1,12 @@
 // ==========================================
 // MÓDULO FINANCEIRO
 // ==========================================
+
+function abrirModalNovoFinanceiro() {
+    document.getElementById('fin-servicos-container').classList.add('hidden');
+    openModal('modal-financeiro');
+}
+
 function switchFinTab(tipo) {
     tipoFinanceiroAtual = tipo;
     const tabRec = document.getElementById('tab-receber');
@@ -168,6 +174,8 @@ async function loadFinanceiro() {
                 badgeCor = 'bg-blue-100 text-blue-700';
             }
 
+            let servicosRow = item.servicos ? `<span class="block text-[10px] text-gray-500 uppercase mt-0.5 truncate max-w-[200px]" title="${item.servicos}">${item.servicos}</span>` : '';
+
             tbody.innerHTML += `
                 <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td class="py-3 px-4 text-center"></td>
@@ -177,13 +185,17 @@ async function loadFinanceiro() {
                             ${item.categoria || 'Avulso'}
                         </span>
                     </td>
-                    <td class="py-3 px-4 font-medium text-gray-900">${item.descricao}</td>
+                    <td class="py-3 px-4">
+                        <span class="font-medium text-gray-900 block">${item.descricao}</span>
+                        ${servicosRow}
+                    </td>
                     <td class="py-3 px-4 text-gray-500">${item.cliente || '-'}</td>
                     <td class="py-3 px-2 text-gray-500 text-center">${item.parcela || '1/1'}</td>
                     <td class="py-3 px-4 font-bold ${corValor} flex items-center">${tipoFinanceiroAtual === 'baixas' ? iconeTipo : ''} R$ ${parseFloat(item.valor_total).toFixed(2).replace('.', ',')}</td>
                     <td class="py-3 px-4 text-gray-500">R$ ${parseFloat(item.valor_pago || 0).toFixed(2).replace('.', ',')}</td>
                     <td class="py-3 px-4"><span class="px-2 py-1 rounded text-[10px] ${badgeCor} font-bold tracking-wide">${displayStatus}</span></td>
                     <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <button onclick="abrirRecibo('${item.id}')" title="Gerar Recibo PDF" class="mx-1 text-gray-400 hover:text-purple-600 transition-colors"><i class="ph ph-receipt text-lg"></i></button>
                         <button onclick="darBaixa('${item.id}', '${item.baixado === 'S' ? 'N' : 'S'}', '${item.valor_total}')" title="${item.baixado === 'S' ? 'Estornar Baixa' : 'Dar Baixa (Receber/Pagar)'}" class="mx-1 ${item.baixado === 'S' ? 'text-blue-500 hover:text-blue-700' : 'text-green-500 hover:text-green-700'} transition-colors"><i class="ph ${item.baixado === 'S' ? 'ph-arrow-u-up-left' : 'ph-check-circle'} text-lg"></i></button>
                         <button onclick="editarFinanceiro('${item.id}')" title="Editar" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
                         <button onclick="deletarFinanceiro('${item.id}')" title="Apagar" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-lg"></i></button>
@@ -211,6 +223,8 @@ async function loadFinanceiro() {
             const descMaster = baseItem.descricao.replace(/ \(Parc\. \d+\/\d+\)$/, '');
             let proxVenc = itens.find(i => i.status !== 'Pago' && i.baixado !== 'S') || itens[itens.length - 1];
 
+            let servicosMasterRow = baseItem.servicos ? `<span class="block text-[10px] text-gray-500 uppercase mt-0.5 truncate max-w-[200px]" title="${baseItem.servicos}">${baseItem.servicos}</span>` : '';
+
             tbody.innerHTML += `
                 <tr class="border-b border-gray-100 bg-gray-100/60 hover:bg-gray-100 transition-colors cursor-pointer" onclick="toggleGrupo('${gId}')">
                     <td class="py-3 px-4 text-center"><i id="icon-${gId}" class="ph ph-caret-right text-gray-500 text-lg transition-transform"></i></td>
@@ -220,13 +234,17 @@ async function loadFinanceiro() {
                             ${baseItem.categoria || 'Avulso'}
                         </span>
                     </td>
-                    <td class="py-3 px-4 font-bold text-gray-900">${descMaster}</td>
+                    <td class="py-3 px-4">
+                        <span class="font-bold text-gray-900 block">${descMaster}</span>
+                        ${servicosMasterRow}
+                    </td>
                     <td class="py-3 px-4 text-gray-700">${baseItem.cliente || '-'}</td>
                     <td class="py-3 px-2 text-gray-700 text-center font-bold">${numParcelas}x</td>
                     <td class="py-3 px-4 font-bold ${corValorGrupo} flex items-center">${tipoFinanceiroAtual === 'baixas' ? iconeTipoGrupo : ''} R$ ${totalValor.toFixed(2).replace('.', ',')}</td>
                     <td class="py-3 px-4 text-gray-700 font-bold">R$ ${totalPago.toFixed(2).replace('.', ',')}</td>
                     <td class="py-3 px-4"><span class="px-2 py-1 rounded text-[10px] ${badgeMaster} font-bold tracking-wide">${statusGrupo}</span></td>
                     <td class="py-3 px-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                        <button onclick="abrirRecibo('${baseItem.id}')" title="Gerar Recibo PDF" class="mx-1 text-gray-400 hover:text-purple-600 transition-colors"><i class="ph ph-receipt text-lg"></i></button>
                         <button onclick="darBaixaGrupo('${gId}', '${isGroupBaixado ? 'N' : 'S'}')" title="${isGroupBaixado ? 'Estornar Baixa do Grupo' : 'Dar Baixa em todas as parcelas listadas'}" class="mx-1 ${isGroupBaixado ? 'text-blue-500 hover:text-blue-700' : 'text-green-500 hover:text-green-700'} transition-colors"><i class="ph ${isGroupBaixado ? 'ph-arrow-u-up-left' : 'ph-check-circle'} text-lg"></i></button>
                         <button onclick="editarGrupo('${gId}')" title="Editar informações do grupo" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
                         <button onclick="deletarGrupo('${gId}')" title="Apagar lançamento completo" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-lg"></i></button>
@@ -259,6 +277,7 @@ async function loadFinanceiro() {
                         <td class="py-2 px-4 text-gray-600 text-sm">R$ ${parseFloat(item.valor_pago || 0).toFixed(2).replace('.', ',')}</td>
                         <td class="py-2 px-4"><span class="px-2 py-0.5 rounded text-[10px] ${badgeCorP} font-bold">${displayStatusP}</span></td>
                         <td class="py-2 px-4 text-center whitespace-nowrap">
+                            <button onclick="abrirRecibo('${item.id}')" title="Gerar Recibo PDF" class="mx-1 text-gray-400 hover:text-purple-600 transition-colors"><i class="ph ph-receipt text-sm"></i></button>
                             <button onclick="darBaixa('${item.id}', '${item.baixado === 'S' ? 'N' : 'S'}', '${item.valor_total}')" title="${item.baixado === 'S' ? 'Estornar Baixa' : 'Dar Baixa'}" class="mx-1 ${item.baixado === 'S' ? 'text-blue-500 hover:text-blue-700' : 'text-green-500 hover:text-green-700'} transition-colors"><i class="ph ${item.baixado === 'S' ? 'ph-arrow-u-up-left' : 'ph-check-circle'} text-sm"></i></button>
                             <button onclick="editarFinanceiro('${item.id}')" title="Editar parcela" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-sm"></i></button>
                             <button onclick="deletarFinanceiro('${item.id}')" title="Apagar parcela" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-sm"></i></button>
@@ -463,6 +482,18 @@ async function editarFinanceiro(id) {
         const labelVencimento = document.getElementById('fin-label-vencimento');
         const divParcelamento = document.getElementById('fin-div-parcelamento');
 
+        const contServicos = document.getElementById('fin-servicos-container');
+        const listaServicos = document.getElementById('fin-lista-servicos');
+        
+        if (data.servicos && data.servicos.trim() !== '') {
+            contServicos.classList.remove('hidden');
+            let servs = data.servicos.split(',').map(s => s.trim()).filter(s => s);
+            listaServicos.innerHTML = servs.map(s => `<span class="bg-white border border-gray-200 text-gray-700 text-[11px] font-bold px-2 py-1 rounded shadow-sm"><i class="ph ph-check text-green-500 mr-1"></i>${s}</span>`).join('');
+        } else {
+            contServicos.classList.add('hidden');
+            listaServicos.innerHTML = '';
+        }
+
         if (data.parcela && data.parcela !== '1/1') {
             descInput.value = `Parcela ${numParcelaText}`;
             descInput.disabled = true;
@@ -489,7 +520,7 @@ async function editarFinanceiro(id) {
         document.getElementById('fin-valor-pago').value = formatarNumeroParaMoeda(data.valor_pago || 0);
         
         document.getElementById('fin-status').value = (data.status === 'Baixado' || data.status === 'Pago' || data.baixado === 'S') ? 'Pago' : data.status;
-        document.getElementById('fin-forma-pagamento').value = data.forma_pagamento;
+        document.getElementById('fin-forma-pagamento').value = data.forma_pagamento || 'PIX';
         
         document.getElementById('fin-valor-total').disabled = false;
         document.getElementById('fin-valor-pago').disabled = false;
@@ -524,11 +555,23 @@ async function editarGrupo(gId) {
         descInput.disabled = false;
         descInput.classList.remove('bg-gray-100', 'text-gray-400');
 
+        const contServicos = document.getElementById('fin-servicos-container');
+        const listaServicos = document.getElementById('fin-lista-servicos');
+        
+        if (baseItem.servicos && baseItem.servicos.trim() !== '') {
+            contServicos.classList.remove('hidden');
+            let servs = baseItem.servicos.split(',').map(s => s.trim()).filter(s => s);
+            listaServicos.innerHTML = servs.map(s => `<span class="bg-white border border-gray-200 text-gray-700 text-[11px] font-bold px-2 py-1 rounded shadow-sm"><i class="ph ph-check text-green-500 mr-1"></i>${s}</span>`).join('');
+        } else {
+            contServicos.classList.add('hidden');
+            listaServicos.innerHTML = '';
+        }
+
         document.getElementById('fin-label-vencimento').innerText = 'Vencimento (1ª Parcela) *';
         document.getElementById('fin-div-parcelamento').classList.remove('hidden');
 
         document.getElementById('fin-cliente').value = baseItem.cliente || '';
-        document.getElementById('fin-forma-pagamento').value = baseItem.forma_pagamento;
+        document.getElementById('fin-forma-pagamento').value = baseItem.forma_pagamento || 'PIX';
 
         const totalValor = data.reduce((acc, curr) => acc + parseFloat(curr.valor_total), 0);
         const totalPago = data.reduce((acc, curr) => acc + parseFloat(curr.valor_pago || 0), 0);
@@ -616,4 +659,75 @@ function pesquisarFinanceiro() {
             tr[i].style.display = "";
         } else { tr[i].style.display = "none"; }
     }
+}
+
+// -------------------------------------------------------------------------
+// FUNÇÕES DO MODAL DE RECIBO
+// -------------------------------------------------------------------------
+let reciboNomeArquivo = 'recibo.pdf';
+
+window.abrirRecibo = async function(id) {
+    try {
+        const { data, error } = await supabaseClient.from('financeiro').select('*').eq('id', id).single();
+        
+        if (error) {
+            console.error("Erro ao buscar recibo no banco:", error);
+            alert("Não foi possível carregar os dados deste recibo.");
+            return;
+        }
+
+        if (data) {
+            const isPagar = data.tipo === 'pagar';
+            
+            document.getElementById('label-rec-valor').innerText = isPagar ? 'Valor Pago:' : 'Valor Recebido:';
+            document.getElementById('label-rec-cliente').innerText = isPagar ? 'Enviado para:' : 'Recebemos de:';
+            
+            const recValor = document.getElementById('rec-valor');
+            const vTotal = data.valor_total || 0;
+            recValor.innerText = `R$ ${parseFloat(vTotal).toFixed(2).replace('.', ',')}`;
+            
+            // A COR DO VALOR AGORA FICA PRETA (definida no CSS como text-gray-900).
+            // A lógica de trocar para vermelho/verde foi removida a seu pedido.
+            
+            document.getElementById('rec-cliente').innerText = data.cliente || 'Não informado';
+            document.getElementById('rec-descricao').innerText = data.descricao || '-';
+            
+            if (data.servicos && data.servicos.trim() !== '') {
+                document.getElementById('rec-linha-servicos').classList.remove('hidden');
+                document.getElementById('rec-servicos').innerText = data.servicos;
+            } else {
+                document.getElementById('rec-linha-servicos').classList.add('hidden');
+            }
+            
+            document.getElementById('rec-forma').innerText = data.forma_pagamento || 'PIX / A Combinar';
+            
+            const dataHoje = new Date();
+            document.getElementById('rec-data').innerText = dataHoje.toLocaleDateString('pt-BR');
+            
+            const nomeCliArquivo = data.cliente ? data.cliente.replace(/\s+/g, '_') : 'Avulso';
+            reciboNomeArquivo = `Recibo_${nomeCliArquivo}_${data.vencimento}.pdf`;
+
+            document.getElementById('modal-recibo').classList.remove('hidden');
+        }
+    } catch(e) {
+        console.error("Erro interno no JavaScript ao abrir recibo:", e);
+    }
+}
+
+function fecharRecibo() {
+    document.getElementById('modal-recibo').classList.add('hidden');
+}
+
+function baixarReciboPDF() {
+    const element = document.getElementById('recibo-content');
+    
+    const opt = {
+        margin:       10,
+        filename:     reciboNomeArquivo,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 3, useCORS: true }, 
+        jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
 }
