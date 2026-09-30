@@ -1,261 +1,354 @@
 // ==========================================
 // MÓDULO CLIENTES
 // ==========================================
-let idEditCliente = null;
+var idEditCliente = null;
+var nomeEditClienteAntigo = "";
 
-function abrirModalNovoCliente() {
-    idEditCliente = null;
-    document.getElementById('form-cliente').reset();
-    
-    document.getElementById('titulo-modal-cliente').innerText = "Cadastro de Cliente";
-    document.getElementById('cli-tabs-nav').classList.add('hidden');
-    switchCliTab('dados');
-    document.getElementById('cli-veiculos-cadastrados-container').classList.add('hidden');
-    toggleNovoVeiculoForm(true); 
-    openModal('modal-cliente');
-}
-
-function switchCliTab(tab) {
-    const btnDados = document.getElementById('tab-cli-btn-dados');
-    const btnHist = document.getElementById('tab-cli-btn-historico');
-    const contDados = document.getElementById('tab-cli-dados');
-    const contHist = document.getElementById('tab-cli-historico');
-
-    if (tab === 'dados') {
-        btnDados.className = 'px-4 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600';
-        btnHist.className = 'px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-colors';
-        contDados.classList.remove('hidden');
-        contHist.classList.add('hidden');
-    } else {
-        btnHist.className = 'px-4 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600';
-        btnDados.className = 'px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-colors';
-        contHist.classList.remove('hidden');
-        contDados.classList.add('hidden');
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof supabaseClient !== 'undefined') {
+        loadClientes();
     }
-}
-
-function toggleNovoVeiculoForm(forceHide = false) {
-    const formContainer = document.getElementById('cli-novo-veiculo-form');
-    const btn = document.getElementById('btn-revelar-veiculo');
-
-    if (forceHide || !formContainer.classList.contains('hidden')) {
-        formContainer.classList.add('hidden');
-        btn.innerHTML = '<i class="ph ph-plus-circle text-lg"></i> Adicionar Veículo a este cliente';
-        btn.classList.remove('text-red-500');
-        btn.classList.add('text-blue-600');
-        
-        document.getElementById('cli-veiculo-modelo').value = '';
-        document.getElementById('cli-veiculo-cor').value = '';
-        document.getElementById('cli-veiculo-ano').value = '';
-    } else {
-        formContainer.classList.remove('hidden');
-        btn.innerHTML = '<i class="ph ph-x-circle text-lg"></i> Cancelar adição de veículo';
-        btn.classList.remove('text-blue-600');
-        btn.classList.add('text-red-500');
-    }
-}
-
-function toggleListaVeiculos() {
-    const btn = document.getElementById('btn-mostrar-veiculos');
-    const extras = document.querySelectorAll('.veiculo-extra');
-    const isExpanded = btn.getAttribute('data-expanded') === 'true';
-
-    if (isExpanded) {
-        extras.forEach(el => el.classList.add('hidden'));
-        btn.innerText = `Mostrar mais veículos (+${extras.length})`;
-        btn.setAttribute('data-expanded', 'false');
-    } else {
-        extras.forEach(el => el.classList.remove('hidden'));
-        btn.innerText = `Ocultar veículos extras`;
-        btn.setAttribute('data-expanded', 'true');
-    }
-}
+});
 
 async function loadClientes() {
     if (!supabaseClient) return;
-    
-    let { data, error } = await supabaseClient
+
+    const { data, error } = await supabaseClient
         .from('clientes')
         .select('*')
         .eq('apagado', 'N')
-        .order('created_at', { ascending: false });
+        .order('nome');
 
     if (error) {
-        const fallback = await supabaseClient.from('clientes').select('*').eq('apagado', 'N');
-        data = fallback.data || [];
-    }
-
-    const tbody = document.getElementById('tabela-clientes-body');
-    if (!tbody) return; 
-
-    tbody.innerHTML = '';
-    const contador = document.getElementById('contador-clientes');
-    if(contador) contador.innerText = data.length;
-    const pesquisa = document.getElementById('pesquisa-clientes');
-    if(pesquisa) pesquisa.value = ''; 
-
-    if (data.length === 0) {
-        tbody.innerHTML = `
-            <tr><td colspan="6" class="py-12 text-center text-gray-400"><div class="flex flex-col items-center justify-center"><i class="ph ph-folder-open text-4xl mb-3 text-gray-300"></i><p>Nenhuma informação cadastrada.</p></div></td></tr>
-        `;
+        console.error('Erro ao carregar clientes:', error);
         return;
     }
 
-    data.forEach(cliente => {
-        let telefoneSeguro = cliente.telefone || '';
-        let waNumber = telefoneSeguro.replace(/\D/g, '');
-        if (waNumber.length >= 10 && !waNumber.startsWith('55')) waNumber = '55' + waNumber;
-        let cssZap = waNumber ? "text-green-500 hover:text-green-600" : "text-gray-300 cursor-not-allowed pointer-events-none";
+    const tbody = document.getElementById('tabela-clientes-body');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
 
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-gray-400">Nenhum cliente cadastrado.</td></tr>`;
+        return;
+    }
+
+    data.forEach(cli => {
         tbody.innerHTML += `
-            <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                <td class="py-3 px-6 font-medium text-gray-900">${cliente.nome || '-'}</td>
-                <td class="py-3 px-6">
-                    <div class="flex items-center gap-2">
-                        <span>${telefoneSeguro || '-'}</span>
-                        <a href="https://wa.me/${waNumber}" target="_blank" title="Chamar no WhatsApp" class="transition-colors flex items-center ${cssZap}"><i class="ph ph-whatsapp-logo text-xl"></i></a>
-                    </div>
-                </td>
-                <td class="py-3 px-6 text-gray-500 truncate max-w-[200px]">${cliente.endereco || '-'}</td>
-                <td class="py-3 px-6 text-gray-500">${cliente.email || '-'}</td>
-                <td class="py-3 px-6 text-gray-500">${cliente.ultimo_servico || 'Sem registros'}</td>
-                <td class="py-3 px-6 text-center whitespace-nowrap">
-                    <button onclick="editarCliente('${cliente.id}')" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors"><i class="ph ph-pencil-simple text-lg"></i></button>
-                    <button onclick="deletarCliente('${cliente.id}')" class="text-gray-400 hover:text-red-600 mx-1 transition-colors"><i class="ph ph-trash text-lg"></i></button>
+            <tr class="border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors">
+                <td class="py-4 px-6 font-bold text-gray-900">${cli.nome}</td>
+                <td class="py-4 px-6 text-gray-600">${cli.telefone}</td>
+                <td class="py-4 px-6 text-gray-600">${cli.endereco || '-'}</td>
+                <td class="py-4 px-6 text-gray-600">${cli.email || '-'}</td>
+                <td class="py-4 px-6 text-gray-600">${cli.ultimo_servico || '-'}</td>
+                <td class="py-4 px-6 text-center whitespace-nowrap">
+                    <button onclick="editarCliente('${cli.id}')" class="text-gray-400 hover:text-blue-600 mx-1 transition-colors" title="Editar"><i class="ph ph-pencil-simple text-xl"></i></button>
+                    <button onclick="deletarCliente('${cli.id}')" class="text-gray-400 hover:text-red-600 mx-1 transition-colors" title="Apagar"><i class="ph ph-trash text-xl"></i></button>
                 </td>
             </tr>
         `;
     });
 }
 
+function abrirModalNovoCliente() {
+    idEditCliente = null;
+    nomeEditClienteAntigo = "";
+    document.getElementById('form-cliente').reset();
+    document.getElementById('titulo-modal-cliente').innerText = 'Novo Cliente';
+    
+    // Reseta o select da Categoria do Veículo
+    document.getElementById('cli-veiculo-categoria').value = "Hatch/Sedan";
+
+    document.getElementById('cli-tabs-nav').classList.add('hidden');
+    document.getElementById('cli-veiculos-cadastrados-container').classList.add('hidden');
+    document.getElementById('cli-novo-veiculo-form').classList.add('hidden');
+    
+    switchCliTab('dados');
+    document.getElementById('modal-cliente').classList.remove('hidden');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+
+function switchCliTab(tab) {
+    const btnDados = document.getElementById('tab-cli-btn-dados');
+    const btnHistorico = document.getElementById('tab-cli-btn-historico');
+    const contDados = document.getElementById('tab-cli-dados');
+    const contHistorico = document.getElementById('tab-cli-historico');
+
+    if(tab === 'dados') {
+        btnDados.className = 'px-4 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600';
+        btnHistorico.className = 'px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent';
+        contDados.style.display = 'block';
+        contHistorico.style.display = 'none';
+    } else {
+        btnHistorico.className = 'px-4 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600';
+        btnDados.className = 'px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent';
+        contDados.style.display = 'none';
+        contHistorico.style.display = 'block';
+    }
+}
+
+function toggleNovoVeiculoForm() {
+    const formVei = document.getElementById('cli-novo-veiculo-form');
+    formVei.classList.toggle('hidden');
+}
+
+// ==========================================
+// FUNÇÕES DE EDIÇÃO DE VEÍCULOS (MINI FORM)
+// ==========================================
+async function carregarVeiculosDoClienteModal(clienteNome) {
+    const container = document.getElementById('cli-veiculos-cadastrados-container');
+    const lista = document.getElementById('cli-lista-veiculos');
+    
+    if(!clienteNome) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    const { data } = await supabaseClient
+        .from('veiculos')
+        .select('*')
+        .eq('cliente_nome', clienteNome)
+        .eq('apagado', 'N')
+        .order('nome');
+    
+    if (data && data.length > 0) {
+        container.classList.remove('hidden');
+        lista.innerHTML = '';
+        
+        data.forEach(v => {
+            const catAtual = v.categoria || "Hatch/Sedan";
+            
+            // Renderiza as options do Select selecionando a correta do BD
+            const catOptions = `
+                <option value="Hatch/Sedan" ${catAtual === 'Hatch/Sedan' ? 'selected' : ''}>Hatch/Sedan</option>
+                <option value="SUV/Caminhonete" ${catAtual === 'SUV/Caminhonete' ? 'selected' : ''}>SUV/Camin</option>
+                <option value="Moto Baixa Cilindrada" ${catAtual === 'Moto Baixa Cilindrada' ? 'selected' : ''}>Moto Baixa</option>
+                <option value="Moto Média Cilindrada" ${catAtual === 'Moto Média Cilindrada' ? 'selected' : ''}>Moto Média</option>
+                <option value="Moto Alta Cilindrada" ${catAtual === 'Moto Alta Cilindrada' ? 'selected' : ''}>Moto Alta</option>
+                <option value="Biz" ${catAtual === 'Biz' ? 'selected' : ''}>Biz</option>
+                <option value="Outros" ${catAtual === 'Outros' ? 'selected' : ''}>Outros</option>
+            `;
+
+            lista.innerHTML += `
+                <div class="bg-white border border-gray-200 rounded-lg p-3 shadow-sm relative transition-all hover:border-blue-300 mb-2">
+                    <div class="grid grid-cols-12 gap-2 items-end">
+                        <div class="col-span-6">
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-0.5">Modelo</label>
+                            <input type="text" id="cli-edit-vei-nome-${v.id}" value="${v.nome}" class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:border-blue-500 outline-none font-medium text-gray-800">
+                        </div>
+                        <div class="col-span-6">
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-0.5">Categoria</label>
+                            <select id="cli-edit-vei-categoria-${v.id}" class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:border-blue-500 outline-none font-medium text-gray-800">
+                                ${catOptions}
+                            </select>
+                        </div>
+                        <div class="col-span-4">
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-0.5">Cor</label>
+                            <input type="text" id="cli-edit-vei-cor-${v.id}" value="${v.cor || ''}" class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:border-blue-500 outline-none font-medium text-gray-800">
+                        </div>
+                        <div class="col-span-4">
+                            <label class="block text-[10px] text-gray-500 uppercase font-bold mb-0.5">Ano</label>
+                            <input type="text" id="cli-edit-vei-ano-${v.id}" value="${v.ano || ''}" class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:border-blue-500 outline-none font-medium text-gray-800">
+                        </div>
+                        <div class="col-span-4 flex justify-end gap-1">
+                            <button type="button" onclick="atualizarVeiculoMini('${v.id}')" id="btn-salvar-vei-${v.id}" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-1.5 rounded transition-colors flex-1 flex justify-center items-center gap-1 border border-blue-100" title="Salvar Alterações">
+                                <i class="ph ph-check font-bold text-sm"></i>
+                            </button>
+                            <button type="button" onclick="deletarVeiculoMini('${v.id}', '${clienteNome}')" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1.5 rounded transition-colors flex justify-center items-center border border-red-100 w-10" title="Excluir Veículo">
+                                <i class="ph ph-trash font-bold text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        container.classList.add('hidden');
+        lista.innerHTML = '';
+    }
+}
+
+async function atualizarVeiculoMini(id) {
+    const nome = document.getElementById(`cli-edit-vei-nome-${id}`).value;
+    const categoria = document.getElementById(`cli-edit-vei-categoria-${id}`).value;
+    const cor = document.getElementById(`cli-edit-vei-cor-${id}`).value;
+    const ano = document.getElementById(`cli-edit-vei-ano-${id}`).value;
+
+    if(!nome) {
+        alert("O modelo do veículo é obrigatório!");
+        return;
+    }
+
+    const { error } = await supabaseClient.from('veiculos').update({ nome, categoria, cor, ano }).eq('id', id);
+
+    if (error) {
+        console.error(error);
+        alert("Erro ao atualizar o veículo.");
+    } else {
+        const btn = document.getElementById(`btn-salvar-vei-${id}`);
+        if(btn) {
+            btn.classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-100');
+            btn.classList.add('bg-green-500', 'text-white', 'border-green-600');
+            setTimeout(() => {
+                btn.classList.add('bg-blue-50', 'text-blue-600', 'border-blue-100');
+                btn.classList.remove('bg-green-500', 'text-white', 'border-green-600');
+            }, 1500);
+        }
+        
+        if(typeof loadVeiculos === 'function') loadVeiculos();
+    }
+}
+
+async function deletarVeiculoMini(id, clienteNome) {
+    if(confirm('Tem certeza que deseja apagar este veículo?')) {
+        await supabaseClient.from('veiculos').update({ apagado: 'S' }).eq('id', id);
+        carregarVeiculosDoClienteModal(clienteNome); 
+        if(typeof loadVeiculos === 'function') loadVeiculos();
+    }
+}
+
+// ==========================================
+// SALVAR, EDITAR E HISTÓRICO
+// ==========================================
 async function salvarCliente(event) {
     event.preventDefault();
-    
-    const nomeCliente = document.getElementById('cli-nome').value;
-    const telefoneCliente = document.getElementById('cli-telefone').value;
 
+    const nomeNovo = document.getElementById('cli-nome').value.trim();
     const cliente = {
-        nome: nomeCliente,
-        telefone: telefoneCliente,
+        nome: nomeNovo,
+        telefone: document.getElementById('cli-telefone').value,
         email: document.getElementById('cli-email').value,
         endereco: document.getElementById('cli-endereco').value,
         apagado: 'N'
     };
 
-    const veiculoModelo = document.getElementById('cli-veiculo-modelo').value;
-    const veiculoCor = document.getElementById('cli-veiculo-cor').value;
-    const veiculoAno = document.getElementById('cli-veiculo-ano').value;
-
     if (idEditCliente) {
         await supabaseClient.from('clientes').update(cliente).eq('id', idEditCliente);
+
+        if (nomeEditClienteAntigo && nomeEditClienteAntigo !== nomeNovo) {
+            await supabaseClient.from('veiculos').update({ cliente_nome: nomeNovo }).eq('cliente_nome', nomeEditClienteAntigo);
+            await supabaseClient.from('agendamentos').update({ cliente_nome: nomeNovo }).eq('cliente_nome', nomeEditClienteAntigo);
+            await supabaseClient.from('financeiro').update({ cliente: nomeNovo }).eq('cliente', nomeEditClienteAntigo);
+        }
+
+        const novoVeiModelo = document.getElementById('cli-veiculo-modelo').value.trim();
+        if(novoVeiModelo) {
+            await supabaseClient.from('veiculos').insert([{
+                nome: novoVeiModelo,
+                categoria: document.getElementById('cli-veiculo-categoria').value,
+                cliente_nome: nomeNovo,
+                cor: document.getElementById('cli-veiculo-cor').value,
+                ano: document.getElementById('cli-veiculo-ano').value,
+                status: 'Ativo',
+                apagado: 'N'
+            }]);
+            
+            document.getElementById('cli-veiculo-modelo').value = "";
+            document.getElementById('cli-veiculo-categoria').value = "Hatch/Sedan";
+            document.getElementById('cli-veiculo-cor').value = "";
+            document.getElementById('cli-veiculo-ano').value = "";
+            document.getElementById('cli-novo-veiculo-form').classList.add('hidden');
+        }
+
     } else {
         await supabaseClient.from('clientes').insert([cliente]);
-    }
-
-    if (veiculoModelo && veiculoModelo.trim() !== '') {
-        const novoVeiculo = {
-            nome: veiculoModelo.trim(),
-            cliente_nome: nomeCliente,
-            cliente_telefone: telefoneCliente,
-            cor: veiculoCor,
-            ano: veiculoAno,
-            status: 'Ativo',
-            apagado: 'N'
-        };
-        await supabaseClient.from('veiculos').insert([novoVeiculo]);
-        if (typeof loadVeiculos === 'function') loadVeiculos();
+        
+        const novoVeiModelo = document.getElementById('cli-veiculo-modelo').value.trim();
+        if(novoVeiModelo) {
+            await supabaseClient.from('veiculos').insert([{
+                nome: novoVeiModelo,
+                categoria: document.getElementById('cli-veiculo-categoria').value,
+                cliente_nome: nomeNovo,
+                cor: document.getElementById('cli-veiculo-cor').value,
+                ano: document.getElementById('cli-veiculo-ano').value,
+                status: 'Ativo',
+                apagado: 'N'
+            }]);
+        }
     }
 
     closeModal('modal-cliente');
     loadClientes();
+    if(typeof loadVeiculos === 'function') loadVeiculos();
+    if(typeof loadFinanceiro === 'function') loadFinanceiro();
+    if(typeof loadAgendamentos === 'function') loadAgendamentos();
 }
 
 async function editarCliente(id) {
     const { data } = await supabaseClient.from('clientes').select('*').eq('id', id).single();
+    
     if (data) {
         idEditCliente = id;
-
-        document.getElementById('titulo-modal-cliente').innerText = `Editar: ${data.nome}`;
-        document.getElementById('cli-tabs-nav').classList.remove('hidden');
-        switchCliTab('dados');
-        toggleNovoVeiculoForm(true); 
-
-        document.getElementById('cli-nome').value = data.nome || '';
-        document.getElementById('cli-telefone').value = data.telefone || '';
+        nomeEditClienteAntigo = data.nome;
+        document.getElementById('titulo-modal-cliente').innerText = 'Editar Cliente';
+        
+        document.getElementById('cli-nome').value = data.nome;
+        document.getElementById('cli-telefone').value = data.telefone;
         document.getElementById('cli-email').value = data.email || '';
         document.getElementById('cli-endereco').value = data.endereco || '';
+        
+        document.getElementById('cli-veiculo-modelo').value = "";
+        document.getElementById('cli-veiculo-categoria').value = "Hatch/Sedan";
+        document.getElementById('cli-veiculo-cor').value = "";
+        document.getElementById('cli-veiculo-ano').value = "";
+        document.getElementById('cli-novo-veiculo-form').classList.add('hidden');
 
-        const { data: veiculos } = await supabaseClient.from('veiculos').select('*').eq('cliente_nome', data.nome).eq('apagado', 'N');
-        const contVeiculos = document.getElementById('cli-veiculos-cadastrados-container');
-        const listaVeiculos = document.getElementById('cli-lista-veiculos');
-        const btnMostrar = document.getElementById('btn-mostrar-veiculos');
+        document.getElementById('cli-tabs-nav').classList.remove('hidden');
+        switchCliTab('dados');
         
-        listaVeiculos.innerHTML = '';
+        await carregarVeiculosDoClienteModal(data.nome);
+        carregarHistoricoCliente(data.nome);
+
+        document.getElementById('modal-cliente').classList.remove('hidden');
+    }
+}
+
+async function carregarHistoricoCliente(clienteNome) {
+    const lista = document.getElementById('cli-lista-agendamentos');
+    lista.innerHTML = '<div class="flex justify-center p-4"><i class="ph ph-spinner animate-spin text-2xl text-gray-400"></i></div>';
+    
+    const { data } = await supabaseClient
+        .from('agendamentos')
+        .select('*')
+        .eq('cliente_nome', clienteNome)
+        .eq('apagado', 'N')
+        .order('data_agendamento', { ascending: false });
         
-        if (veiculos && veiculos.length > 0) {
-            contVeiculos.classList.remove('hidden');
-            veiculos.forEach((v, index) => {
-                let hiddenClass = index > 0 ? 'hidden veiculo-extra' : '';
-                listaVeiculos.innerHTML += `
-                    <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg flex justify-between items-center ${hiddenClass}">
-                        <div>
-                            <p class="text-sm font-bold text-gray-800">${v.nome} <span class="text-xs font-normal text-gray-500">(${v.ano || 'S/ Ano'})</span></p>
-                            <p class="text-[10px] text-gray-500 uppercase mt-0.5">Cor: ${v.cor || '-'} | Status: ${v.status}</p>
-                        </div>
-                        <i class="ph ph-car text-blue-400 text-2xl"></i>
-                    </div>
-                `;
-            });
+    if(data && data.length > 0) {
+        lista.innerHTML = '';
+        data.forEach(ag => {
+            let dataFormatada = ag.data_agendamento.split('-').reverse().join('/');
+            let badgeClass = "bg-gray-100 text-gray-600";
+            if(ag.status === 'Finalizado') badgeClass = "bg-[#ebf8ee] text-[#4ade80]";
+            else if(ag.status === 'Cancelado') badgeClass = "bg-[#faeaea] text-[#b95756]";
+            else if(ag.status === 'Em Andamento') badgeClass = "bg-[#fcf8e3] text-[#c0ca33]";
+            else if(ag.status === 'Orçamento') badgeClass = "bg-[#f3e8ff] text-purple-600";
+            else badgeClass = "bg-[#eaeffc] text-[#6185eb]"; 
             
-            if (veiculos.length > 1) {
-                btnMostrar.classList.remove('hidden');
-                btnMostrar.innerText = `Mostrar mais veículos (+${veiculos.length - 1})`;
-                btnMostrar.setAttribute('data-expanded', 'false');
-            } else {
-                btnMostrar.classList.add('hidden');
-            }
-        } else {
-            contVeiculos.classList.add('hidden');
-        }
-
-        const { data: agendamentos } = await supabaseClient.from('agendamentos').select('*').eq('cliente_nome', data.nome).eq('apagado', 'N').order('data_agendamento', { ascending: false });
-        const listaAgendamentos = document.getElementById('cli-lista-agendamentos');
-        
-        listaAgendamentos.innerHTML = '';
-        
-        if (agendamentos && agendamentos.length > 0) {
-            agendamentos.forEach(a => {
-                let badgeClass = "bg-gray-200 text-gray-700";
-                if(a.status === 'Finalizado') badgeClass = "bg-green-100 text-green-700";
-                else if(a.status === 'Em Andamento') badgeClass = "bg-yellow-100 text-yellow-700";
-                else if(a.status === 'Cancelado') badgeClass = "bg-red-100 text-red-700";
-                else if(a.status === 'Agendado') badgeClass = "bg-blue-100 text-blue-700";
-                
-                const dataFormatada = a.data_agendamento.split('-').reverse().join('/');
-                listaAgendamentos.innerHTML += `
-                    <div class="flex justify-between items-center bg-white border border-gray-100 p-4 rounded-lg shadow-sm">
-                        <div>
-                            <p class="text-sm font-bold text-gray-800">${dataFormatada} às ${a.horario.substring(0,5)}</p>
-                            <p class="text-[11px] text-gray-500 mt-1 uppercase w-56 truncate" title="${a.descricao}">${a.descricao}</p>
-                            <p class="text-[10px] text-gray-400 mt-0.5">Veículo: ${a.veiculo || 'Não informado'}</p>
+            lista.innerHTML += `
+                <div class="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm mb-3">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-sm font-bold text-gray-900">${dataFormatada}</span>
+                            <span class="text-xs text-gray-400 font-medium">${ag.horario.substring(0,5)}</span>
                         </div>
-                        <div class="text-right">
-                            <span class="px-2 py-1 rounded uppercase text-[10px] font-bold ${badgeClass} tracking-wide">${a.status}</span>
-                            <p class="text-sm font-bold text-gray-900 mt-2">R$ ${parseFloat(a.valor_total).toFixed(2).replace('.', ',')}</p>
-                        </div>
+                        <p class="text-sm font-bold text-gray-700">${ag.descricao}</p>
+                        <p class="text-xs text-gray-500 mt-1"><i class="ph ph-car text-gray-400"></i> ${ag.veiculo || 'Sem veículo'} &nbsp;|&nbsp; R$ ${parseFloat(ag.valor_total).toFixed(2).replace('.', ',')}</p>
                     </div>
-                `;
-            });
-        } else {
-            listaAgendamentos.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-10 text-gray-400">
-                    <i class="ph ph-clock text-4xl mb-2 text-gray-300"></i>
-                    <p class="text-sm">Nenhum histórico de agendamento.</p>
+                    <span class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${badgeClass}">${ag.status}</span>
                 </div>
             `;
-        }
-
-        openModal('modal-cliente');
+        });
+    } else {
+        lista.innerHTML = `
+            <div class="text-center py-8">
+                <i class="ph ph-calendar-blank text-4xl text-gray-300 mb-2 block"></i>
+                <p class="text-xs text-gray-500">Nenhum serviço ou orçamento no histórico.</p>
+            </div>`;
     }
 }
 
@@ -269,23 +362,23 @@ async function deletarCliente(id) {
 function pesquisarClientes() {
     let input = document.getElementById("pesquisa-clientes").value.toLowerCase();
     let tr = document.getElementById("tabela-clientes").getElementsByTagName("tr");
-    let count = 0;
+    
     for (let i = 1; i < tr.length; i++) {
-        if ((tr[i].textContent || tr[i].innerText).toLowerCase().indexOf(input) > -1) {
-            tr[i].style.display = ""; count++;
-        } else { tr[i].style.display = "none"; }
+        if (tr[i].getElementsByTagName("td").length > 1) { 
+            if ((tr[i].textContent || tr[i].innerText).toLowerCase().indexOf(input) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
     }
-    const contador = document.getElementById('contador-clientes');
-    if(contador) contador.innerText = count;
 }
 
 function chamarWhatsappModal() {
-    let phoneInput = document.getElementById('cli-telefone').value || '';
-    let numbers = phoneInput.replace(/\D/g, '');
-    if (numbers.length >= 10) {
-        if (!numbers.startsWith('55')) numbers = '55' + numbers;
-        window.open(`https://wa.me/${numbers}`, '_blank');
+    const telefone = document.getElementById('cli-telefone').value.replace(/\D/g, '');
+    if(telefone.length >= 10) {
+        window.open(`https://api.whatsapp.com/send?phone=55${telefone}`, '_blank');
     } else {
-        alert("Por favor, insira um número de telefone válido antes de chamar no WhatsApp.");
+        alert('Preencha um número de telefone válido.');
     }
 }
