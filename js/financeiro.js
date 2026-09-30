@@ -3,6 +3,7 @@
 // ==========================================
 
 function abrirModalNovoFinanceiro() {
+    document.getElementById('btn-baixar-fin').classList.add('hidden');
     document.getElementById('fin-servicos-container').classList.add('hidden');
     openModal('modal-financeiro');
 }
@@ -527,6 +528,7 @@ async function editarFinanceiro(id) {
         document.getElementById('fin-vencimento').disabled = false;
         document.getElementById('fin-status').disabled = false;
         document.getElementById('fin-lista-parcelas').classList.add('hidden');
+        document.getElementById('btn-baixar-fin').classList.remove('hidden');
         
         financeiroEmEdicaoId = id;
         financeiroEmEdicaoGrupoId = null;
@@ -718,16 +720,60 @@ function fecharRecibo() {
     document.getElementById('modal-recibo').classList.add('hidden');
 }
 
-function baixarReciboPDF() {
-    const element = document.getElementById('recibo-content');
+function baixarReciboPNG() {
+    const elemento = document.getElementById('recibo-content');
     
-    const opt = {
-        margin:       10,
-        filename:     reciboNomeArquivo,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 3, useCORS: true }, 
-        jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
-    };
-    
-    html2pdf().set(opt).from(element).save();
+    if (typeof html2canvas === 'undefined') {
+        alert("A biblioteca de imagem ainda está carregando. Tente novamente em 2 segundos.");
+        return;
+    }
+
+    html2canvas(elemento, {
+        scale: 2, // Deixa a imagem com o dobro de resolução (alta qualidade)
+        useCORS: true,
+        backgroundColor: "#ffffff"
+    }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = imgData;
+        
+        // Pega o nome do cliente para colocar no nome do arquivo
+        let nomeCli = document.getElementById('rec-cliente').innerText.replace(/\s+/g, '_');
+        link.download = `Recibo_IGB_${nomeCli}.png`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
 }
+
+// ==========================================
+// FUNÇÃO DE BAIXA RÁPIDA NO MODAL
+// ==========================================
+function darBaixaFinanceiroModal() {
+    // 1. Altera o status para Pago
+    document.getElementById('fin-status').value = 'Pago';
+    
+    // 2. Copia o valor total para o campo de valor pago
+    let valorTotal = document.getElementById('fin-valor-total').value;
+    if(valorTotal) {
+        document.getElementById('fin-valor-pago').value = valorTotal;
+    }
+
+    // 3. Simula o clique no botão "Salvar Lançamento" para fechar e enviar pro Banco
+    document.querySelector('#form-financeiro button[type="submit"]').click();
+}
+
+//function baixarReciboPDF() {
+    //const element = document.getElementById('recibo-content');
+    
+    //const opt = {
+    //    margin:       10,
+    //    filename:     reciboNomeArquivo,
+    //    image:        { type: 'jpeg', quality: 0.98 },
+    //    html2canvas:  { scale: 3, useCORS: true }, 
+    //    jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
+//    };
+    
+    //html2pdf().set(opt).from(element).save();
+//}
